@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Check
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Shared toolchain and tasks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Also proves the shared toolchain installs on a fresh machine
+      - name: Install mise and the shared tools
+        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        with:
+          cache: true
+
+      - name: Show resolved tools
+        run: mise ls
+
+      - name: Lint task scripts
+        run: mise run check
+
+      - name: Every shared task loads and has a valid usage spec
+        run: |
+          mise tasks ls --json | jq -r '.[].name' | while read -r task; do
+            echo "::group::$task"
+            mise run "$task" --help
+            echo "::endgroup::"
+          done
