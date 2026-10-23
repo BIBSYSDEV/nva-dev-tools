@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#MISE description="Show why a dependency is on the classpath, per module."
+#MISE dir="{{cwd}}"
+#USAGE arg "<dependency>" help="Group, name or substring, e.g. picocontainer"
+#USAGE flag "-m --module <module>" help="Only this module (default: all)"
+#USAGE flag "-c --configuration <configuration>" help="Gradle configuration (default: testRuntimeClasspath, which includes main)"
+set -euo pipefail
+
+dependency=${usage_dependency:?}
+module=${usage_module:-}
+configuration=${usage_configuration:-testRuntimeClasspath}
+
+if [[ -n "$module" ]]; then
+  modules=(":$module")
+else
+  mapfile -t modules < <(./gradlew -q --console=plain projects | grep -o "Project ':[^']*'" | cut -d"'" -f2)
+  # A single-module build has no subprojects; the root project is then the one to ask
+  [[ ${#modules[@]} -eq 0 ]] && modules=("")
+fi
+
+for module_path in "${modules[@]}"; do
+  echo "== ${module_path:-root} =="
+  output=$(./gradlew -q --console=plain "${module_path}:dependencyInsight" --dependency "$dependency" --configuration "$configuration" 2>&1 || true)
+  if [[ "$output" == *"No dependencies matching"* ]]; then
+    echo "not found"
+  else
+    echo "$output"
+  fi
+  echo
+done
