@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Daily AWS SSO login for the sikt session (opens a browser)"
+set -euo pipefail
+
+aws sso login --sso-session sikt
