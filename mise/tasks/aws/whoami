@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-#MISE description="Show the current AWS identity and account name"
-#USAGE flag "-p --profile <profile>" help="AWS profile to use (defaults to AWS_PROFILE or the default profile)"
+#MISE description="Show the current AWS identity and account."
+#USAGE flag "-p --profile <profile>" help="AWS profile (default: AWS_PROFILE)"
 set -euo pipefail
 
 profile=${usage_profile:-}
