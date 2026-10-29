@@ -1,0 +1,23 @@
+# Shared mise configuration for NVA development. Setup and task reference: README.md in this folder.
+#
+# Pull this in from your own mise config (global ~/.config/mise/config.toml, or a
+# mise.toml / mise.local.toml in the folder that holds your NVA clones):
+#
+#   include = ["/path/to/nva-dev-tools/mise/nva.toml"]
+#
+#   [task_config]
+#   includes = ["/path/to/nva-dev-tools/mise/tasks"]
+#
+# then: mise trust /path/to/nva-dev-tools/mise/tasks
+#
+# Your own config wins over anything declared here, so override tool versions locally if needed.
+# Included files may only contain [tools], [env], [vars], [hooks], [shell_alias] and [bootstrap];
+# shared tasks are file tasks under mise/tasks/ and are pulled in by task_config.includes.
+# Set NVA_CLI in your own [env] for the pipeline:* and dlq:* tasks (see README.md).
+
+[tools]
+aws-cli = "latest"
+java = "corretto-21"
+node = "24"
+python = "3.14"
+uv = "latest"
