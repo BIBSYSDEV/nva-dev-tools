@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="List available dependency updates."
+#MISE dir="{{cwd}}"
+set -euo pipefail
+
+./gradlew dependencyUpdates --no-parallel
