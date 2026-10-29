@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Deploy the current branch through the pipeline."
+#MISE dir="{{cwd}}"
+set -euo pipefail
+
+read -ra nva_cli <<< "${NVA_CLI:?Set NVA_CLI to the nva-aws-cli-tools command in your mise config (see mise/README.md)}"
+
+"${nva_cli[@]}" pipelines deploy
