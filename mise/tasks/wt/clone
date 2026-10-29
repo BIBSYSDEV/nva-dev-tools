@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+#MISE description="Clone a repo into the bare + worktrees layout, under NVA_REPOS_DIR or the current directory."
+#MISE dir="{{cwd}}"
+#USAGE arg "<repository>" help="nva-nvi, BIBSYSDEV/nva-nvi, git@github.com:BIBSYSDEV/nva-nvi.git or https://github.com/BIBSYSDEV/nva-nvi (all the same repo)"
+#USAGE arg "[name]" help="Folder name (default: the repository name, e.g. nva-nvi)"
+set -euo pipefail
+
+repository_input=${usage_repository:?}
+folder_name=${usage_name:-}
+repos_dir=${NVA_REPOS_DIR:-$PWD}
+
+case "$repository_input" in
+  *://* | *@*:* | /*) clone_url=$repository_input ;;
+  */*) clone_url="git@github.com:${repository_input}.git" ;;
+  *) clone_url="git@github.com:BIBSYSDEV/${repository_input}.git" ;;
+esac
+repository_name=$(basename "${clone_url%.git}")
+
+target_directory="$repos_dir/${folder_name:-$repository_name}"
+
+if [[ -e "$target_directory" ]]; then
+  echo "Already exists: $target_directory" >&2
+  exit 1
+fi
+
+echo "Cloning $clone_url into $target_directory" >&2
+mkdir -p "$target_directory"
+trap 'rm -rf "$target_directory"' ERR
+
+# --single-branch keeps local refs/heads to the default branch; every branch is still fetched as origin/*
+git clone --bare --single-branch "$clone_url" "$target_directory/.bare" >&2
+echo "gitdir: ./.bare" > "$target_directory/.git"
+
+cd "$target_directory"
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git fetch --quiet origin
+git remote set-head origin --auto >&2
+
+default_branch="$(git symbolic-ref --short HEAD)"
+git worktree add --quiet "$default_branch" "$default_branch"
+git branch --quiet --set-upstream-to="origin/$default_branch" "$default_branch"
+
+trap - ERR
+echo "Ready: $target_directory/$default_branch (tracking origin/$default_branch)" >&2
+echo "$target_directory/$default_branch"
