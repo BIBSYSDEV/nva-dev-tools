@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+#MISE description="Open a branch's worktree in IntelliJ, creating it if needed."
+#MISE dir="{{cwd}}"
+#USAGE arg "[branch]" help="Branch name (default: today's date)"
+set -euo pipefail
+
+branch=${usage_branch:-}
+
+mise run wt:open idea ${branch:+"$branch"}

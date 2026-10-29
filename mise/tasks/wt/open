@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#MISE description="Open a branch's worktree in an editor (used by wt:code and wt:idea)."
+#MISE hide=true
+#MISE dir="{{cwd}}"
+#USAGE arg "<editor>" help="code or idea"
+#USAGE arg "[branch]" help="Branch name (default: today's date)"
+set -euo pipefail
+
+editor=${usage_editor:?}
+branch=${usage_branch:-$(date +%F)}
+
+repository_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+worktree_path="$repository_root/${branch//\//-}"
+
+if [[ ! -d "$worktree_path" ]]; then
+  git fetch --quiet origin || echo "warning: fetch failed, using local state" >&2
+  if git show-ref --verify --quiet "refs/heads/$branch" || git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+    mise run wt:checkout "$branch"
+  else
+    mise run wt:add "$branch"
+  fi
+fi
+
+"$editor" "$worktree_path"
