@@ -1,0 +1,18 @@
+# For working on this repo. mise/config.toml (shared tools) is loaded automatically.
+
+[task_config]
+includes = ["mise/tasks"]
+
+[tasks.check]
+description = "Shellcheck all task scripts."
+run = "find mise/tasks -type f -perm -u+x -print0 | xargs -0 shellcheck"
+
+[tasks.build]
+description = "Same as check."
+depends = ["check"]
+# Without an explicit run, mise would merge this with the shared build task and run that too.
+run = "true"
+
+[tasks.bump]
+description = "Bump the pinned CLIs in mise/config.toml to releases at least a week old."
+run = "mise upgrade --bump --minimum-release-age 7d uv cfn-lint gh jq shellcheck spectral yq"
