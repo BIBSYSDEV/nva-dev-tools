@@ -26,9 +26,10 @@ Your own config wins over the shared one, so override a tool version locally if 
 
 Three things are yours to set, since they differ per machine:
 
-- `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` and `dlq` tasks.
+- `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` tasks.
   Example: `NVA_CLI = "uv run --quiet --project ~/projects/nva-aws-cli-tools ~/projects/nva-aws-cli-tools/cli.py"` in your `[env]`.
 - `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones (default: the current directory).
+  A leading `~/` works in both, even though mise itself leaves it alone in `[env]`.
 - AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod` and `nva-prod-admin`, under an SSO session named `sikt`.
 
 ## Tasks
@@ -61,7 +62,7 @@ nva-nvi/
 ```
 
 Worktree folders are named after the branch, with slashes turned into dashes.
-All `wt` tasks fetch origin first.
+The tasks that create or inspect worktrees fetch origin first; `--no-fetch` skips that where offered.
 
 | Task | Does |
 | --- | --- |
@@ -69,10 +70,11 @@ All `wt` tasks fetch origin first.
 | `wt:add [branch] [base]` | New branch from `origin/HEAD` (default name: today's date). Refuses a name that exists on origin. |
 | `wt:checkout <branch>` | Worktree for an existing branch, local or on origin (a colleague's PR branch, for instance). |
 | `wt:code [branch]`, `wt:idea [branch]` | Open the branch's worktree in VS Code or IntelliJ; checks out or creates it first if needed. |
-| `wt:list [--no-fetch] [--pr]` | All worktrees with a stale flag: merged into main, or pushed and since deleted on origin. `--pr` asks GitHub, which also catches squash merges. |
-| `wt:remove <branch>` | Removes the worktree and, if merged into `origin/main`, the branch. `--force` for a squash-merged branch or a dirty worktree, `--keep-branch` to keep it. |
+| `wt:list [--no-fetch] [--no-pr]` | All worktrees with a flag: `stale` when merged (including squash-merged, via the PR state from GitHub), or deleted on origin; `review` when never pushed and without commits beyond main, since that may be work in progress. `--no-pr` skips GitHub. |
+| `wt:remove <branch>` | Removes the worktree and the branch together, if the branch is merged (into main, or via a merged PR that contains every local commit) and the worktree is clean. `--force` removes regardless, `--keep-branch` removes the worktree only. Never removes the default branch or the worktree you are standing in. |
+| `wt:prune [--yes] [--force] [--no-pr] [--no-fetch]` | Shows the stale worktrees; `--yes` removes them together with their branches. Dirty worktrees and branches with unmerged local commits are skipped unless `--force`. `review` worktrees are listed but never removed; use `wt:remove`. |
 
-Aliases: `wta`, `wtc`, `wtl`, `wtr`.
+Aliases: `wta`, `wtc`, `wtl`, `wtr`, `wtp`.
 `wt:clone` prints the path of the default-branch worktree, so `cd "$(mise run -q wt:clone nva-nvi)"` works.
 
 ## Tool versions
@@ -81,7 +83,37 @@ Aliases: `wta`, `wtc`, `wtl`, `wtr`.
 Dependabot does not understand mise, so run `mise run bump` in this repo now and then and open a pull request with the result; it only picks releases at least a week old.
 Runtimes (Java, Node, Python) are bumped by hand.
 
-## Adding a task
+## Python commands
+
+Anything with shared logic is Python: the `nva-dev` Click CLI in `src/nva_dev_tools/`, one sub-package per command group (`worktrees/` is the `wt` group) plus `common/` for git, gh and output helpers.
+The mise tasks for those commands are three-line bash shims that `exec uv run --quiet --project <repo> nva-dev wt ...`, so `mise run wt:prune --yes` and `nva-dev wt prune --yes` are the same thing.
+mise answers `--help` itself with the task card; for Click's help, with the options, run `mise run wt:prune -- --help` or `nva-dev wt prune --help`.
+`uv run` syncs the environment on first use; after that it adds under a tenth of a second per call.
+
+Rules of thumb for where something goes:
+
+- A thin wrapper around one or two commands: a bash task.
+- Shared logic, JSON parsing, records passed between functions, or prompts: a command in the CLI, in an existing group or a new sub-package registered in `cli.py`.
+- A one-off script: a PEP 723 single-file script under `scripts/`, run with `uv run`; promote it to a command when it gets a second user.
+- Anything that needs AWS credentials: [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), not here.
+
+Inside a group, `actions.py` and `classify.py` are plain functions (no Click, no prompts) and `cli.py` owns options and output, so the logic is testable without a terminal.
+Exit codes: 0 on success, 1 when the command refuses (not merged, dirty, not a worktree), 2 on a usage error or an unexpected git or gh failure.
+Tests live in `tests/python/`, mirroring the packages, and run against real git in a temp directory; `mise run test` runs them, `mise run check` runs shellcheck, ruff and ty.
+Shell completion for `nva-dev`: `eval "$(_NVA_DEV_COMPLETE=zsh_source nva-dev)"` (needs `uv tool install .` or the `.venv` on your path).
+
+A minimal command:
+
+```python
+@wt.command()
+@click.argument("branch")
+@click.option("-f", "--force", is_flag=True, help="Do it even if it is risky.")
+def thing(branch: str, force: bool) -> None:
+    """One short sentence."""
+    actions.thing(git.repository_root(), branch, force=force)
+```
+
+## Adding a bash task
 
 A task is an executable script at `tasks/<group>/<name>`, run as `<group>:<name>`.
 
@@ -89,6 +121,7 @@ A task is an executable script at `tasks/<group>/<name>`, run as `<group>:<name>
 - Declare arguments with `#USAGE` lines and copy them into named variables first thing: `${usage_x:?}` if required, `${usage_x:-}` if optional.
 - Use `#MISE dir="{{cwd}}"` when the task works on the repo you are standing in.
 - Must pass shellcheck without `disable` directives; `mise run check` in this repo runs it, as does CI.
+- Helpers shared by several tasks go in a non-executable `tasks/lib/<name>.sh`, sourced with a `# shellcheck source=` directive so shellcheck follows it (see `check` and `build`).
 
 ```bash
 #!/usr/bin/env bash

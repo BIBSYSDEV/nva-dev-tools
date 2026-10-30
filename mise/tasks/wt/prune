@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Remove stale worktrees together with their branches. Shows what it would do unless --yes."
+#MISE alias="wtp"
+#MISE dir="{{cwd}}"
+set -euo pipefail
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+exec uv run --quiet --project "$repo_root" nva-dev wt prune "$@"

@@ -1,17 +1,22 @@
 # For working on this repo. mise/config.toml (shared tools) is loaded automatically.
+# The shared build task applies here as well: it runs the check task below, then pytest.
 
 [task_config]
 includes = ["mise/tasks"]
 
 [tasks.check]
-description = "Shellcheck all task scripts."
-run = "find mise/tasks -type f -perm -u+x -print0 | xargs -0 shellcheck"
+description = "Run all linter checks."
+run = [
+  # -x follows the sourced tasks/lib files, which are only meaningful in the context of their callers
+  "find mise/tasks -type f -perm -u+x -print0 | xargs -0 shellcheck --shell=bash -x",
+  "uv run --quiet ruff check",
+  "uv run --quiet ruff format --check",
+  "uv run --quiet ty check",
+]
 
-[tasks.build]
-description = "Same as check."
-depends = ["check"]
-# Without an explicit run, mise would merge this with the shared build task and run that too.
-run = "true"
+[tasks.test]
+description = "Run the Python tests."
+run = "uv run --quiet pytest -q"
 
 [tasks.bump]
 description = "Bump the pinned CLIs in mise/config.toml to releases at least a week old."

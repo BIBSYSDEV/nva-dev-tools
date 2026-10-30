@@ -5,10 +5,10 @@ set -euo pipefail
 
 profile=${usage_profile:-}
 
-profile_args=()
+# Exported rather than passed as --profile: an empty argument array trips set -u on the stock macOS bash 3.2
 if [[ -n "$profile" ]]; then
-  profile_args=(--profile "$profile")
+  export AWS_PROFILE=$profile
 fi
 
-echo "Identity: $(aws sts get-caller-identity --query Arn --output text "${profile_args[@]}")"
-echo "Account:  $(aws account get-account-information --query '[AccountId, AccountName]' --output text "${profile_args[@]}")"
+echo "Identity: $(aws sts get-caller-identity --query Arn --output text)"
+echo "Account:  $(aws account get-account-information --query '[AccountId, AccountName]' --output text)"

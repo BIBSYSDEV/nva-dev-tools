@@ -10,8 +10,12 @@ on:
 
 jobs:
   check:
-    name: Shared toolchain and tasks
-    runs-on: ubuntu-latest
+    name: Check and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -24,8 +28,11 @@ jobs:
       - name: Show resolved tools
         run: mise ls
 
-      - name: Lint task scripts
+      - name: Lint
         run: mise run check
+
+      - name: Test
+        run: mise run test
 
       - name: Every shared task loads and has a valid usage spec
         run: |
