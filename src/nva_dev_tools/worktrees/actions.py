@@ -9,40 +9,56 @@ from nva_dev_tools.common.run import CommandError, Refusal
 from nva_dev_tools.worktrees.classify import PullRequestLookup, classify_branch, find_worktree
 from nva_dev_tools.worktrees.model import Worktree
 
+KEEP = "-"
+"""The action for a worktree that is not stale: prune leaves it alone."""
+
 
 @dataclass
 class PruneOutcome:
     worktree: Worktree
     action: str
-    """review, skip, prune, pruned or failed."""
+    """prune, skip, review or KEEP in a plan; prune becomes pruned or failed once the plan is applied."""
     notes: list[str] = field(default_factory=list)
     """The worktree's notes plus anything prune added, such as "current directory"."""
 
+    @property
+    def risky(self) -> bool:
+        """Removing it loses work: uncommitted changes, or local commits that are in no merged branch."""
+        return self.worktree.dirty or not self.worktree.status.deletable
 
-def prune(root: Path, worktrees: list[Worktree], *, apply: bool, force: bool, original_cwd: Path) -> list[PruneOutcome]:
-    """Decide, and with apply carry out, the removal of stale worktrees together with their branches.
 
-    Runs git from root so removing a worktree never pulls the rug from under the caller's shell;
-    the worktree containing original_cwd is skipped for the same reason. A failed removal is an
-    outcome, not an exception.
+def plan_prune(worktrees: list[Worktree], *, force: bool, original_cwd: Path) -> list[PruneOutcome]:
+    """What prune does with every worktree, decided without touching anything.
+
+    The worktree containing original_cwd is skipped, since removing it would leave the caller's shell in a
+    deleted folder.
     """
-    outcomes: list[PruneOutcome] = []
-    for worktree in worktrees:
-        if not (worktree.status.stale or worktree.status.review):
-            continue
-        outcome = PruneOutcome(worktree=worktree, action="prune", notes=worktree.notes)
-        outcomes.append(outcome)
+    return [_decide(worktree, force=force, original_cwd=original_cwd) for worktree in worktrees]
 
-        if worktree.status.review:
-            outcome.action = "review"
-        elif _holds(worktree.path, original_cwd):
-            outcome.action = "skip"
-            outcome.notes.append("current directory")
-        elif not force and (worktree.dirty or not worktree.status.deletable):
-            outcome.action = "skip"
-        elif apply:
-            _remove_worktree_and_branch(root, worktree, outcome)
-    return outcomes
+
+def _decide(worktree: Worktree, *, force: bool, original_cwd: Path) -> PruneOutcome:
+    outcome = PruneOutcome(worktree=worktree, action="prune", notes=worktree.notes)
+    if worktree.status.review:
+        outcome.action = "review"
+    elif not worktree.status.stale:
+        outcome.action = KEEP
+    elif _holds(worktree.path, original_cwd):
+        outcome.action = "skip"
+        outcome.notes.append("current directory")
+    elif not force and outcome.risky:
+        outcome.action = "skip"
+    return outcome
+
+
+def apply_prune(root: Path, plan: list[PruneOutcome]) -> None:
+    """Remove every worktree the plan marks prune, together with its branch, and record how it went.
+
+    Runs git from root so removing a worktree never pulls the rug from under the caller's shell.
+    A failed removal is an outcome, not an exception, so one failure does not stop the others.
+    """
+    for outcome in plan:
+        if outcome.action == "prune":
+            _remove_worktree_and_branch(root, outcome.worktree, outcome)
 
 
 def _remove_worktree_and_branch(root: Path, worktree: Worktree, outcome: PruneOutcome) -> None:

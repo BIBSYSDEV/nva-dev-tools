@@ -75,6 +75,12 @@ def is_ancestor(commit: str, of: str, cwd: Path) -> bool:
     return git_succeeds("merge-base", "--is-ancestor", commit, of, cwd=cwd)
 
 
+def merge_base(commit: str, other: str, cwd: Path) -> str | None:
+    """The best common ancestor of two commits, or None when they share no history."""
+    completed = run(["git", "merge-base", commit, other], cwd=cwd, check=False)
+    return completed.stdout.strip() if completed.returncode == 0 else None
+
+
 def commit_exists(sha: str, cwd: Path) -> bool:
     return git_succeeds("cat-file", "-e", f"{sha}^{{commit}}", cwd=cwd)
 

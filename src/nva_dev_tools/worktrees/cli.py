@@ -12,6 +12,7 @@ from nva_dev_tools.common import gh, git
 from nva_dev_tools.common.output import error, print_table
 from nva_dev_tools.common.run import Refusal
 from nva_dev_tools.worktrees import actions
+from nva_dev_tools.worktrees.actions import PruneOutcome
 from nva_dev_tools.worktrees.classify import PullRequestLookup, classify, list_repository
 from nva_dev_tools.worktrees.model import Worktree
 
@@ -28,11 +29,8 @@ pr_option = click.option(
 )
 
 
-ACTION_ORDER = {"pruned": 0, "prune": 0, "failed": 1, "skip": 2, "review": 3}
-"""Prune table order: what goes (or went) first, then what did not, then what is left for the user."""
-
-STATE_ORDER = {"stale": 0, "review": 1, "-": 2}
-"""List table order: stale first, then review, then the rest."""
+ACTION_ORDER = {"pruned": 0, "prune": 0, "failed": 1, "skip": 2, "review": 3, actions.KEEP: 4}
+"""Table order: what goes (or went) first, then what does not, then what is left for the user, then the rest."""
 
 
 @click.group()
@@ -60,23 +58,76 @@ def classify_with_progress(root: Path, *, fetch: bool, check_pr: bool) -> list[W
         return classify(listing, pull_requests=pull_requests, progress=lambda entry: bar.update(1, entry))
 
 
+def plan_with_progress(root: Path, *, fetch: bool, check_pr: bool, force: bool) -> list[PruneOutcome]:
+    """The prune plan for every worktree. wt:list and wt:prune both show it, so they always agree."""
+    original_cwd = Path.cwd()
+    worktrees = classify_with_progress(root, fetch=fetch, check_pr=check_pr)
+    return actions.plan_prune(worktrees, force=force, original_cwd=original_cwd)
+
+
+def print_outcomes(outcomes: list[PruneOutcome]) -> None:
+    ordered = sorted(outcomes, key=lambda outcome: (ACTION_ORDER[outcome.action], outcome.worktree.name))
+    rows = [
+        [outcome.action, outcome.worktree.name, outcome.worktree.branch or "(detached)", ", ".join(outcome.notes)]
+        for outcome in ordered
+    ]
+    print_table(
+        ["STATUS", "WORKTREE", "BRANCH", "NOTES"],
+        rows,
+        styled_column=0,
+        row_style=lambda row: "red" if row[0] == "failed" else None,
+    )
+
+
+def print_plan(plan: list[PruneOutcome]) -> Counter[str]:
+    """The table of every worktree with a summary below it. Returns the number of worktrees per action."""
+    print_outcomes(plan)
+    counts = Counter(outcome.action for outcome in plan)
+    click.echo()
+    click.echo(f"{counts['prune']} to prune together with their branches" if counts["prune"] else "Nothing to prune")
+    if counts["skip"]:
+        click.echo(f"{counts['skip']} skipped: dirty or with unmerged local commits (--force includes them)")
+    if counts["review"]:
+        click.echo(
+            f"{counts['review']} never pushed and without own commits: remove by hand with wt:remove if they are done"
+        )
+    if counts[actions.KEEP]:
+        click.echo(f"{counts[actions.KEEP]} not stale, kept")
+    return counts
+
+
+def can_prompt() -> bool:
+    """True when someone can answer a question: stdin is a terminal, not a pipe, a file or a CI runner."""
+    return sys.stdin.isatty()
+
+
+def confirm_removal(plan: list[PruneOutcome]) -> bool:
+    """Ask before removing anything. Without a terminal to ask in, the answer is no."""
+    if not can_prompt():
+        click.echo("Nothing removed: there is no terminal to confirm in, so pass --yes to remove them")
+        return False
+    to_prune = [outcome for outcome in plan if outcome.action == "prune"]
+    risky = sum(1 for outcome in to_prune if outcome.risky)
+    warning = f", including {risky} with uncommitted changes or unmerged commits" if risky else ""
+    click.echo()
+    if click.confirm(f"Remove {len(to_prune)} worktree(s) and their branches{warning}?", default=False):
+        return True
+    click.echo("Nothing removed")
+    return False
+
+
 @wt.command("list")
 @fetch_option
 @pr_option
 def list_command(fetch: bool, check_pr: bool) -> None:
-    """List worktrees and flag stale ones."""
-    root = git.repository_root()
-    worktrees = classify_with_progress(root, fetch=fetch, check_pr=check_pr)
-    worktrees.sort(key=lambda worktree: (STATE_ORDER[worktree.state], worktree.name))
-    rows = [
-        [worktree.name, worktree.branch or "(detached)", worktree.state, ", ".join(worktree.notes)]
-        for worktree in worktrees
-    ]
-    print_table(["WORKTREE", "BRANCH", "STALE", "NOTES"], rows, styled_column=2)
+    """List worktrees and what wt:prune would do with each."""
+    print_plan(plan_with_progress(git.repository_root(), fetch=fetch, check_pr=check_pr, force=False))
 
 
 @wt.command()
-@click.option("-y", "--yes", is_flag=True, help="Actually remove (default: only show).")
+@click.option(
+    "-y", "--yes", is_flag=True, help="Remove without asking (default: ask in a terminal, only show otherwise)."
+)
 @click.option(
     "-f", "--force", is_flag=True, help="Also remove stale worktrees that are dirty or have unmerged local commits."
 )
@@ -84,41 +135,23 @@ def list_command(fetch: bool, check_pr: bool) -> None:
 @fetch_option
 @click.pass_context
 def prune(context: click.Context, yes: bool, force: bool, check_pr: bool, fetch: bool) -> None:
-    """Remove stale worktrees together with their branches. Shows what it would do unless --yes."""
-    original_cwd = Path.cwd()
+    """Show the worktrees as wt:list does, then remove the stale ones together with their branches once confirmed."""
     root = git.repository_root()
-    worktrees = classify_with_progress(root, fetch=fetch, check_pr=check_pr)
-    outcomes = actions.prune(root, worktrees, apply=yes, force=force, original_cwd=original_cwd)
+    plan = plan_with_progress(root, fetch=fetch, check_pr=check_pr, force=force)
+    counts = print_plan(plan)
+    if not counts["prune"] or not (yes or confirm_removal(plan)):
+        return
 
-    if outcomes:
-        outcomes.sort(key=lambda outcome: (ACTION_ORDER[outcome.action], outcome.worktree.name))
-        rows = [
-            [outcome.action, outcome.worktree.name, outcome.worktree.branch or "(detached)", ", ".join(outcome.notes)]
-            for outcome in outcomes
-        ]
-        print_table(
-            ["ACTION", "WORKTREE", "BRANCH", "NOTES"],
-            rows,
-            styled_column=0,
-            row_style=lambda row: "red" if row[0] == "failed" else None,
-        )
+    actions.apply_prune(root, plan)
+    pruned = sum(1 for outcome in plan if outcome.action == "pruned")
+    failed = [outcome for outcome in plan if outcome.action == "failed"]
+    click.echo()
+    click.echo(f"Pruned {pruned} worktree(s) with their branches")
+    if failed:
         click.echo()
-
-    counts = Counter(outcome.action for outcome in outcomes)
-    if yes:
-        click.echo(f"Pruned {counts['pruned']} worktree(s) with their branches")
-    elif counts["prune"]:
-        click.echo(f"{counts['prune']} worktree(s) can be pruned with their branches: mise run wt:prune --yes")
-    else:
-        click.echo("Nothing to prune")
-    if counts["skip"]:
-        click.echo(f"{counts['skip']} skipped: dirty or with unmerged local commits (--force includes them)")
-    if counts["review"]:
-        click.echo(
-            f"{counts['review']} never pushed and without own commits: remove by hand with wt:remove if they are done"
-        )
-    if counts["failed"]:
-        click.echo(f"{counts['failed']} failed, see the table")
+        print_outcomes(failed)
+        click.echo()
+        click.echo(f"{len(failed)} failed, see the table above")
         context.exit(1)
 
 

@@ -12,8 +12,10 @@ from nva_dev_tools.worktrees.actions import PruneOutcome
 
 
 def prune_outcomes(repo: Repo, *, apply: bool, force: bool = False, cwd: Path | None = None) -> dict[str, PruneOutcome]:
-    outcomes = actions.prune(repo.root, repo.classify(), apply=apply, force=force, original_cwd=cwd or repo.main)
-    return {outcome.worktree.name: outcome for outcome in outcomes}
+    plan = actions.plan_prune(repo.classify(), force=force, original_cwd=cwd or repo.main)
+    if apply:
+        actions.apply_prune(repo.root, plan)
+    return {outcome.worktree.name: outcome for outcome in plan}
 
 
 def prune_actions(repo: Repo, *, apply: bool, force: bool = False) -> dict[str, str]:
@@ -42,6 +44,7 @@ def test_prune_dry_run_touches_nothing(repo: Repo) -> None:
         "dirty": "skip",
         "squashed": "skip",
         "fresh": "review",
+        "main": "-",
     }
     assert repo.local_branches() == {"main", "clean", "dirty", "squashed", "fresh"}
 
@@ -53,6 +56,7 @@ def test_prune_removes_worktree_and_branch_together(repo: Repo) -> None:
         "dirty": "skip",
         "squashed": "skip",
         "fresh": "review",
+        "main": "-",
     }
     assert not (repo.root / "clean").exists()
     assert repo.local_branches() == {"main", "dirty", "squashed", "fresh"}
@@ -60,7 +64,7 @@ def test_prune_removes_worktree_and_branch_together(repo: Repo) -> None:
 
 def test_prune_force_takes_dirty_and_unmerged_but_never_review(repo: Repo) -> None:
     stale_setup(repo)
-    expected = {"clean": "pruned", "dirty": "pruned", "squashed": "pruned", "fresh": "review"}
+    expected = {"clean": "pruned", "dirty": "pruned", "squashed": "pruned", "fresh": "review", "main": "-"}
     assert prune_actions(repo, apply=True, force=True) == expected
     assert repo.local_branches() == {"main", "fresh"}
 
@@ -94,7 +98,7 @@ def test_prune_reports_a_branch_it_could_not_delete_as_failed(repo: Repo) -> Non
 def test_prune_handles_a_missing_folder(repo: Repo, tmp_path: Path) -> None:
     repo.checkout_from_origin("missing").rename(tmp_path / "moved")
     repo.origin_delete_branch("missing")
-    assert prune_actions(repo, apply=True) == {"missing": "pruned"}
+    assert prune_actions(repo, apply=True) == {"missing": "pruned", "main": "-"}
     assert "missing" not in repo.local_branches()
     assert "missing" not in repo.worktree_branches()
 
@@ -106,7 +110,7 @@ def test_prune_of_one_missing_folder_keeps_the_bookkeeping_of_the_others(repo: R
     squashed.rename(tmp_path / "squashed-moved")
     for branch in ("clean", "squashed"):
         repo.origin_delete_branch(branch)
-    assert prune_actions(repo, apply=True) == {"clean": "pruned", "squashed": "skip"}
+    assert prune_actions(repo, apply=True) == {"clean": "pruned", "squashed": "skip", "main": "-"}
     assert repo.worktree_branches() == {"main", "squashed"}
 
 
@@ -124,6 +128,18 @@ def test_remove_squash_merged_via_pull_request_lookup(repo: Repo) -> None:
     merged = fake_pull_requests(squashed=PullRequest(number=1, state="merged", head_sha=repo.tip("squashed")))
     remove(repo, "squashed", pull_requests=merged)
     assert "squashed" not in repo.local_branches()
+
+
+def test_remove_squash_merged_branch_that_was_pushed_without_upstream(repo: Repo) -> None:
+    stacked = repo.add("stacked")
+    repo.commit_in(stacked)
+    repo.push(stacked)
+    repo.origin_delete_branch("stacked")
+    with pytest.raises(Refusal, match="not verifiably merged"):
+        remove(repo, "stacked", pull_requests=fake_pull_requests())
+    merged = fake_pull_requests(stacked=PullRequest(number=1, state="merged", head_sha=repo.tip("stacked")))
+    remove(repo, "stacked", pull_requests=merged)
+    assert "stacked" not in repo.local_branches()
 
 
 def test_remove_refuses_unmerged_and_dirty_unless_forced(repo: Repo) -> None:

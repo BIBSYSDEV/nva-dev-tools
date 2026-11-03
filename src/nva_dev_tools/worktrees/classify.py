@@ -53,8 +53,13 @@ def classify_branch(
     branch: str, root: Path, default_ref: str, *, pull_requests: PullRequestLookup | None
 ) -> BranchStatus:
     """The one place that decides whether a branch is stale, up for review or safe to delete."""
+    pull_request = pull_requests(branch) if pull_requests is not None else None
     on_origin = git.remote_branch_exists(branch, root)
-    pushed = on_origin or git.tracks_its_own_remote_branch(branch, root)
+    pushed = (
+        on_origin
+        or git.tracks_its_own_remote_branch(branch, root)
+        or (pull_request is not None and _opened_from(branch, pull_request, root, default_ref))
+    )
     in_default = git.is_ancestor(git.local_ref(branch), default_ref, root)
     status = BranchStatus(stale=in_default and pushed, review=in_default and not pushed, deletable=in_default)
     if in_default:
@@ -73,7 +78,6 @@ def classify_branch(
         status.notes.append("never pushed")
 
     if pull_requests is not None and pushed:
-        pull_request = pull_requests(branch)
         if pull_request is None:
             status.notes.append("no PR")
         else:
@@ -87,8 +91,21 @@ def classify_branch(
     return status
 
 
-def _merged_head_contains(branch: str, pull_request: PullRequest, root: Path) -> tuple[bool, str | None]:
-    """Whether every local commit is in the head that was merged, with a note when it is not.
+def _opened_from(branch: str, pull_request: PullRequest, root: Path, default_ref: str) -> bool:
+    """True when the pull request shares a commit with the local branch that is not on the default branch.
+
+    That proves a push git itself keeps no trace of: a branch pushed without setting its upstream, as stacked
+    branches often are, is gone from origin once its pull request is merged. Comparing history rather than
+    trusting the name keeps a never-pushed branch that merely shares its name with a pull request out of it.
+    """
+    if not _head_available(pull_request, root):
+        return False
+    shared = git.merge_base(git.local_ref(branch), pull_request.head_sha, root)
+    return shared is not None and not git.is_ancestor(shared, default_ref, root)
+
+
+def _head_available(pull_request: PullRequest, root: Path) -> bool:
+    """Whether the pull request head is in the object store, fetching it first when it is not.
 
     That head is past the local tip when a reviewer pushed the last commits, and then usually not fetched
     either, since the branch is deleted on origin by the time the merge is noticed. GitHub keeps the pull
@@ -96,7 +113,12 @@ def _merged_head_contains(branch: str, pull_request: PullRequest, root: Path) ->
     """
     if not git.commit_exists(pull_request.head_sha, root):
         git.fetch_pull_request_head(pull_request.number, root)
-    if not git.commit_exists(pull_request.head_sha, root):
+    return git.commit_exists(pull_request.head_sha, root)
+
+
+def _merged_head_contains(branch: str, pull_request: PullRequest, root: Path) -> tuple[bool, str | None]:
+    """Whether every local commit is in the head that was merged, with a note when it is not."""
+    if not _head_available(pull_request, root):
         return False, "merged head not fetched"
     if git.is_ancestor(git.local_ref(branch), pull_request.head_sha, root):
         return True, None
@@ -139,7 +161,7 @@ def classify(
 ) -> list[Worktree]:
     """Classify every worktree of the listing.
 
-    pull_requests is consulted for pushed branches when given; None means no PR state is used.
+    pull_requests is consulted for every branch when given; None means no PR state is used.
     progress, if given, is called after each worktree, for a progress bar.
     """
     worktrees: list[Worktree] = []

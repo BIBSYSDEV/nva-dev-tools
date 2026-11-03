@@ -11,7 +11,6 @@ STYLES = {
     "skip": "yellow",
     "failed": "bold red",
     "review": "cyan",
-    "stale": "red",
     "-": "dim",
 }
 """Colours for action and state cells. Rich drops them when stdout is not a terminal."""

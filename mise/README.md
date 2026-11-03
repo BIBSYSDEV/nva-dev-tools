@@ -70,9 +70,9 @@ The tasks that create or inspect worktrees fetch origin first; `--no-fetch` skip
 | `wt:add [branch] [base]` | New branch from `origin/HEAD` (default name: today's date). Refuses a name that exists on origin. |
 | `wt:checkout <branch>` | Worktree for an existing branch, local or on origin (a colleague's PR branch, for instance). |
 | `wt:code [branch]`, `wt:idea [branch]` | Open the branch's worktree in VS Code or IntelliJ; checks out or creates it first if needed. |
-| `wt:list [--no-fetch] [--no-pr]` | All worktrees with a flag: `stale` when merged (including squash-merged, via the PR state from GitHub), or deleted on origin; `review` when never pushed and without commits beyond main, since that may be work in progress. `--no-pr` skips GitHub. |
+| `wt:list [--no-fetch] [--no-pr]` | All worktrees with what `wt:prune` would do with each: `prune` when merged (into main, or via a merged PR) or deleted on origin; `skip` when that is so but the worktree is dirty or has unmerged local commits; `review` when never pushed and without commits beyond main, since that may be work in progress; `-` for the rest. `--no-pr` skips GitHub. |
 | `wt:remove <branch>` | Removes the worktree and the branch together, if the branch is merged (into main, or via a merged PR that contains every local commit) and the worktree is clean. `--force` removes regardless, `--keep-branch` removes the worktree only. Never removes the default branch or the worktree you are standing in. |
-| `wt:prune [--yes] [--force] [--no-pr] [--no-fetch]` | Shows the stale worktrees; `--yes` removes them together with their branches. Dirty worktrees and branches with unmerged local commits are skipped unless `--force`. `review` worktrees are listed but never removed; use `wt:remove`. |
+| `wt:prune [--yes] [--force] [--no-pr] [--no-fetch]` | Shows the same table as `wt:list`, then asks before removing the `prune` rows together with their branches (default: no). `--yes` removes without asking; without a terminal and without `--yes` it only shows. `--force` also takes the `skip` rows, and the question says how many of them have work that would be lost. `review` worktrees are never removed; use `wt:remove`. |
 
 Aliases: `wta`, `wtc`, `wtl`, `wtr`, `wtp`.
 `wt:clone` prints the path of the default-branch worktree, so `cd "$(mise run -q wt:clone nva-nvi)"` works.

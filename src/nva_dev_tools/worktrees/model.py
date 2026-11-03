@@ -31,14 +31,6 @@ class Worktree:
     locked: bool = False
 
     @property
-    def state(self) -> str:
-        if self.status.stale:
-            return "stale"
-        if self.status.review:
-            return "review"
-        return "-"
-
-    @property
     def notes(self) -> list[str]:
         notes = list(self.status.notes)
         if self.missing:

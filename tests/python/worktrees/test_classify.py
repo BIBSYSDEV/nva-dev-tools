@@ -39,7 +39,7 @@ def test_default_branch_and_bare_entry(repo: Repo) -> None:
     worktrees = repo.classify(fetch=False)
     assert [worktree.name for worktree in worktrees] == ["main"]
     assert worktrees[0].notes == ["default branch"]
-    assert worktrees[0].state == "-"
+    assert not (worktrees[0].status.stale or worktrees[0].status.review)
 
 
 # --- The classification matrix. Each scenario prepares a branch called "topic" and states what to expect.
@@ -112,6 +112,36 @@ def squash_merged_with_a_head_that_cannot_be_fetched(repo: Repo) -> PullRequestL
     return fake_pull_requests(topic=PullRequest(number=42, state="merged", head_sha="0" * 40))
 
 
+def pushed_without_upstream_then_squash_merged(repo: Repo) -> PullRequestLookup:
+    """Pushed without -u, as stacked branches often are, so only the pull request shows it was ever pushed."""
+    path = repo.add("topic")
+    repo.commit_in(path, "feature work")
+    repo.push(path)
+    repo.origin_delete_branch("topic")
+    return fake_pull_requests(topic=PullRequest(number=42, state="merged", head_sha=repo.tip("topic")))
+
+
+def pushed_without_upstream_squash_merged_then_more_local_commits(repo: Repo) -> PullRequestLookup:
+    pull_requests = pushed_without_upstream_then_squash_merged(repo)
+    repo.commit_in(repo.root / "topic", "forgot something")
+    return pull_requests
+
+
+def never_pushed_sharing_its_name_with_a_merged_pull_request(repo: Repo) -> PullRequestLookup:
+    """Someone else's pull request from a branch of the same name, with no commits beyond main in common."""
+    repo.origin_branch("theirs")
+    their_head = repo.origin_commit_on("theirs", "their work")
+    repo.commit_in(repo.add("topic"))
+    return fake_pull_requests(topic=PullRequest(number=42, state="merged", head_sha=their_head))
+
+
+def fresh_sharing_its_name_with_a_merged_pull_request(repo: Repo) -> PullRequestLookup:
+    repo.origin_branch("theirs")
+    their_head = repo.origin_commit_on("theirs", "their work")
+    repo.add("topic")
+    return fake_pull_requests(topic=PullRequest(number=42, state="merged", head_sha=their_head))
+
+
 def open_pull_request(repo: Repo) -> PullRequestLookup:
     repo.commit_in(repo.checkout_from_origin("topic"))
     return fake_pull_requests(topic=PullRequest(number=7, state="open", head_sha=repo.tip("topic")))
@@ -164,6 +194,22 @@ MATRIX: list[tuple[Scenario, dict[str, bool], list[str]]] = [
         squash_merged_with_a_head_that_cannot_be_fetched,
         {"stale": True},
         ["gone from origin", "PR #42 merged", "merged head not fetched"],
+    ),
+    (
+        pushed_without_upstream_then_squash_merged,
+        {"stale": True, "deletable": True},
+        ["gone from origin", "PR #42 merged"],
+    ),
+    (
+        pushed_without_upstream_squash_merged_then_more_local_commits,
+        {"stale": True},
+        ["gone from origin", "PR #42 merged", "unmerged local commits"],
+    ),
+    (never_pushed_sharing_its_name_with_a_merged_pull_request, {}, ["never pushed"]),
+    (
+        fresh_sharing_its_name_with_a_merged_pull_request,
+        {"review": True, "deletable": True},
+        ["no own commits", "never pushed"],
     ),
     (open_pull_request, {}, ["1 unpushed", "PR #7 open"]),
     (pushed_without_pull_request, {}, ["1 unpushed", "no PR"]),

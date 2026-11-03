@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="List worktrees and flag stale ones."
+#MISE description="List worktrees and what wt:prune would do with each."
 #MISE alias="wtl"
 #MISE dir="{{cwd}}"
 set -euo pipefail
