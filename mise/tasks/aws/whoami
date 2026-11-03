@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+#MISE description="Show the current AWS identity and account name"
+#USAGE flag "-p --profile <profile>" help="AWS profile to use (defaults to AWS_PROFILE or the default profile)"
+set -euo pipefail
+
+profile=${usage_profile:-}
+
+profile_args=()
+if [[ -n "$profile" ]]; then
+  profile_args=(--profile "$profile")
+fi
+
+echo "Identity: $(aws sts get-caller-identity --query Arn --output text "${profile_args[@]}")"
+echo "Account:  $(aws account get-account-information --query '[AccountId, AccountName]' --output text "${profile_args[@]}")"
