@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#MISE description="Show pipeline branches in all environments, or one."
+#MISE dir="{{cwd}}"
+#USAGE arg "[env]" help="e2e, sandbox, dev, test or prod (default: all)"
+set -euo pipefail
+
+requested_environment=${usage_env:-}
+read -ra nva_cli <<< "${NVA_CLI:?Set NVA_CLI to the nva-aws-cli-tools command in your mise config (see mise/README.md)}"
+
+all_environments=(e2e sandbox dev test prod)
+environments=("${requested_environment:-${all_environments[@]}}")
+
+for environment in "${environments[@]}"; do
+  if [[ ! " ${all_environments[*]} " == *" $environment "* ]]; then
+    echo "Unknown environment '$environment', expected one of: ${all_environments[*]}" >&2
+    exit 1
+  fi
+  "${nva_cli[@]}" --profile "nva-$environment" pipelines branches
+done
