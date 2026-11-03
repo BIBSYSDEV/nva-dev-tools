@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+#MISE description="Upgrade the Gradle wrapper to the latest release."
+#MISE dir="{{cwd}}"
+set -euo pipefail
+
+./gradlew :wrapper --gradle-version=latest
+./gradlew :wrapper :wrapper --retries 3
