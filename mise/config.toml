@@ -1,0 +1,17 @@
+# Shared tools for NVA development. Setup: see README.md in this folder.
+
+[tools]
+# Runtimes
+java = "corretto-21"
+node = "24"
+python = "3.14"
+uv = "0.13.5"
+
+# CLIs used by the shared tasks (pinned; bumped by .github/workflows/bump-tools.yml)
+aws-cli = "latest"
+cfn-lint = "1.58.0"
+gh = "2.103.0"
+jq = "1.8.2"
+shellcheck = "0.11.0"
+spectral = "6.17.0"
+yq = "4.54.1"

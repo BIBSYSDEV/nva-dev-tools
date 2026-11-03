@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#MISE description="Check, build and test the current repo (Gradle, npm, uv)."
+#MISE dir="{{cwd}}"
+#USAGE flag "--dry-run" help="Print the commands instead of running them"
+set -euo pipefail
+
+dry_run=${usage_dry_run:-false}
+matched=false
+
+run() {
+  matched=true
+  if [[ "$dry_run" == "true" ]]; then
+    echo "would run: $*"
+  else
+    echo "+ $*"
+    "$@"
+  fi
+}
+
+has_npm_script() {
+  node -e 'process.exit(require("./package.json").scripts?.[process.argv[1]] ? 0 : 1)' "$1"
+}
+
+pyproject_lists() {
+  grep -q "\"$1[>=<~ \"]" pyproject.toml
+}
+
+if [[ "$dry_run" == "true" ]]; then
+  mise run check --dry-run
+else
+  mise run check
+fi
+
+if [[ -x gradlew ]]; then
+  run ./gradlew build
+fi
+
+if [[ -f package.json ]]; then
+  has_npm_script build && run npm run build
+  has_npm_script test:vitest && run npm run test:vitest -- --run
+fi
+
+if [[ -f pyproject.toml ]]; then
+  pyproject_lists pytest && run uv run pytest
+fi
+
+if [[ "$matched" == false && ! -f template.yaml ]]; then
+  echo "Nothing to build here: no gradlew, package.json or pyproject.toml in $PWD" >&2
+  exit 1
+fi
