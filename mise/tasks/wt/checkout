@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#MISE description="Create a worktree for an existing branch."
+#MISE alias="wtc"
+#MISE dir="{{cwd}}"
+#USAGE arg "<branch>" help="Existing local or remote branch"
+set -euo pipefail
+
+branch=${usage_branch:?}
+
+git fetch --quiet origin || echo "warning: fetch failed, using local state" >&2
+
+repository_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+worktree_path="$repository_root/${branch//\//-}"
+
+# For a branch that only exists on origin, git creates a local tracking branch
+git worktree add "$worktree_path" "$branch"
+echo "$worktree_path"

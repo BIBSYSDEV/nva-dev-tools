@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#MISE description="Remove a branch's worktree and the branch."
+#MISE alias="wtr"
+#MISE dir="{{cwd}}"
+#USAGE arg "<branch>" help="Branch whose worktree to remove"
+#USAGE flag "-f --force" help="Also remove with uncommitted changes and delete an unmerged branch (e.g. squash-merged)"
+#USAGE flag "-k --keep-branch" help="Remove the worktree only"
+set -euo pipefail
+
+branch=${usage_branch:?}
+force=${usage_force:-false}
+keep_branch=${usage_keep_branch:-false}
+
+repository_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+worktree_path="$repository_root/${branch//\//-}"
+
+if [[ "$force" == "true" ]]; then
+  git worktree remove --force "$worktree_path"
+else
+  git worktree remove "$worktree_path"
+fi
+
+if [[ "$keep_branch" == "true" ]]; then
+  exit 0
+fi
+
+git fetch --quiet origin || echo "warning: fetch failed, using local state" >&2
+default_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main)
+
+if [[ "$force" == "true" ]] || git merge-base --is-ancestor "$branch" "$default_ref"; then
+  git branch -D "$branch"
+else
+  echo "Worktree removed; branch '$branch' kept because it is not merged into $default_ref (squash-merged? rerun with --force)" >&2
+fi

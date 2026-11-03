@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#MISE description="List worktrees and flag stale ones."
+#MISE alias="wtl"
+#MISE dir="{{cwd}}"
+#USAGE flag "--no-fetch" help="Skip git fetch --prune first"
+#USAGE flag "--pr" help="Also show each branch's PR state via gh (catches squash merges)"
+set -euo pipefail
+
+no_fetch=${usage_no_fetch:-false}
+check_pull_requests=${usage_pr:-false}
+
+if [[ "$no_fetch" != "true" ]]; then
+  git fetch --quiet --prune origin
+fi
+
+default_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null || echo origin/main)
+default_branch=${default_ref#origin/}
+repository_root=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+
+describe_branch() {
+  local branch=$1
+  local worktree_path=$2
+  local stale="-"
+  local notes=()
+
+  if [[ "$branch" == "$default_branch" ]]; then
+    notes+=("default branch")
+  elif [[ "$branch" == "(detached)" ]]; then
+    notes+=("detached HEAD")
+  else
+    if [[ "$(git rev-parse "$branch")" == "$(git rev-parse "$default_ref")" ]]; then
+      stale="stale"
+      notes+=("no commits beyond $default_branch")
+    elif git merge-base --is-ancestor "$branch" "$default_ref"; then
+      stale="stale"
+      notes+=("merged into $default_branch")
+    fi
+    if git show-ref --verify --quiet "refs/remotes/origin/$branch"; then
+      local ahead behind
+      read -r ahead behind < <(git rev-list --left-right --count "$branch...origin/$branch")
+      [[ "$ahead" -gt 0 ]] && notes+=("$ahead unpushed commit(s)")
+      [[ "$behind" -gt 0 ]] && notes+=("$behind commit(s) behind origin")
+    elif git config --get "branch.$branch.remote" >/dev/null; then
+      stale="stale"
+      notes+=("gone from origin (deleted after merge?)")
+    else
+      notes+=("never pushed")
+    fi
+    if [[ "$check_pull_requests" == "true" ]]; then
+      local pr_state
+      pr_state=$(gh pr list --head "$branch" --state all --limit 1 --json number,state \
+        --jq '.[0] | select(. != null) | "PR #\(.number) \(.state | ascii_downcase)"' 2>/dev/null || true)
+      if [[ -n "$pr_state" ]]; then
+        notes+=("$pr_state")
+        [[ "$pr_state" == *merged ]] && stale="stale"
+      else
+        notes+=("no PR")
+      fi
+    fi
+  fi
+
+  if [[ -n "$(git -C "$worktree_path" status --porcelain)" ]]; then
+    notes+=("uncommitted changes")
+  fi
+
+  local joined
+  joined=$(IFS=,; echo "${notes[*]}")
+  printf '%s\t%s\t%s\t%s\n' "${worktree_path#"$repository_root"/}" "$branch" "$stale" "${joined//,/, }"
+}
+
+list_worktrees() {
+  printf 'WORKTREE\tBRANCH\tSTALE\tNOTES\n'
+  local worktree_path="" branch="" is_bare=false
+  while IFS= read -r line; do
+    case "$line" in
+      "worktree "*) worktree_path=${line#worktree } ;;
+      "branch "*) branch=${line#branch refs/heads/} ;;
+      "detached") branch="(detached)" ;;
+      "bare") is_bare=true ;;
+      "")
+        if [[ "$is_bare" == false && -n "$worktree_path" ]]; then
+          describe_branch "$branch" "$worktree_path"
+        fi
+        worktree_path="" branch="" is_bare=false
+        ;;
+    esac
+  done < <(git worktree list --porcelain)
+}
+
+list_worktrees | column -t -s $'\t'
