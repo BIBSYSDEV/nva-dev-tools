@@ -29,7 +29,8 @@ line-length = 120
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM", "PTH"]
+# On top of Ruff's defaults, which leave out most of these families' rules
+extend-select = ["E", "F", "UP", "B", "SIM", "PTH"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/python"]

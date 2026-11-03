@@ -43,7 +43,6 @@ def latest_pull_requests(branches: Sequence[str], cwd: Path) -> dict[str, PullRe
 
 def _not_checked(reason: str) -> None:
     warn(f"PR state not checked, so squash-merged branches will not show as stale; gh failed: {reason}")
-    return None
 
 
 def pull_request_query(branch_count: int) -> str:
