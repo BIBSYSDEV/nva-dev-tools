@@ -3,7 +3,7 @@ name = "nva-dev-tools"
 version = "0.1.0"
 description = "Local development workflow CLI for NVA (git worktrees, repo hygiene)"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.15"
 dependencies = [
     "click>=8.5.0",
     "rich>=15.0.0",
