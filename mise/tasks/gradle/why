@@ -13,7 +13,11 @@ configuration=${usage_configuration:-testRuntimeClasspath}
 if [[ -n "$module" ]]; then
   modules=(":$module")
 else
-  mapfile -t modules < <(./gradlew -q --console=plain projects | grep -o "Project ':[^']*'" | cut -d"'" -f2)
+  # A read loop rather than mapfile, which the stock macOS bash 3.2 does not have
+  modules=()
+  while IFS= read -r module_path; do
+    modules+=("$module_path")
+  done < <(./gradlew -q --console=plain projects | grep -o "Project ':[^']*'" | cut -d"'" -f2)
   # A single-module build has no subprojects; the root project is then the one to ask
   [[ ${#modules[@]} -eq 0 ]] && modules=("")
 fi

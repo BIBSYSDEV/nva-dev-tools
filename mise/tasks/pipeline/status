@@ -3,6 +3,7 @@
 #MISE dir="{{cwd}}"
 set -euo pipefail
 
-read -ra nva_cli <<< "${NVA_CLI:?Set NVA_CLI to the nva-aws-cli-tools command in your mise config (see mise/README.md)}"
+# shellcheck source=mise/tasks/lib/nva-cli.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/nva-cli.sh"
 
-"${nva_cli[@]}" pipelines status
+nva_cli pipelines status

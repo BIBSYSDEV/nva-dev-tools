@@ -8,6 +8,8 @@ set -euo pipefail
 repository_input=${usage_repository:?}
 folder_name=${usage_name:-}
 repos_dir=${NVA_REPOS_DIR:-$PWD}
+# mise does not expand ~ in [env] values
+repos_dir=${repos_dir/#\~\//$HOME/}
 
 case "$repository_input" in
   *://* | *@*:* | /*) clone_url=$repository_input ;;
