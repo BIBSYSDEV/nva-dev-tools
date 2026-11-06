@@ -30,7 +30,8 @@ Three things are yours to set, since they differ per machine:
   Example: `NVA_CLI = "uv run --quiet --project ~/projects/nva-aws-cli-tools ~/projects/nva-aws-cli-tools/cli.py"` in your `[env]`.
 - `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones (default: the current directory).
   A leading `~/` works in both, even though mise itself leaves it alone in `[env]`.
-- AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod` and `nva-prod-admin`, under an SSO session named `sikt`.
+- AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod-read` and `nva-prod-write`, under an SSO session named `sikt`.
+  Prod has one profile per access level: `pipeline:overview` reads prod through `nva-prod-read`, and `nva-prod-write` is for changes.
 
 ## Tasks
 

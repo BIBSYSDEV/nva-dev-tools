@@ -16,5 +16,9 @@ else
 fi
 
 for environment in "${environments[@]}"; do
-  nva_cli --profile "nva-$environment" pipelines branches
+  profile="nva-$environment"
+  if [[ "$environment" == prod ]]; then
+    profile="nva-prod-read"
+  fi
+  nva_cli --profile "$profile" pipelines branches
 done
