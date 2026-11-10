@@ -8,10 +8,12 @@ includes = ["mise/tasks"]
 description = "Run all linter checks."
 run = [
   # -x follows the sourced tasks/lib files, which are only meaningful in the context of their callers
-  "find mise/tasks -type f -perm -u+x -print0 | xargs -0 shellcheck --shell=bash -x",
+  "find mise/tasks plugins -type f -perm -u+x -print0 | xargs -0 shellcheck --shell=bash -x",
   "uv run --quiet ruff check",
   "uv run --quiet ruff format --check",
   "uv run --quiet ty check",
+  # Warns about the missing plugin version, which is left out on purpose: every push to main is a release
+  "claude plugin validate .",
 ]
 
 [tasks.test]
