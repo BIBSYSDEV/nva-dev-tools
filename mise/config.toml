@@ -4,7 +4,7 @@
 # Runtimes
 java = "corretto-21"
 node = "24"
-python = "3.15"
+python = "3.15.2"
 uv = "0.13.5"
 
 # CLIs used by the shared tasks (bump with `mise run bump` in this repo)
