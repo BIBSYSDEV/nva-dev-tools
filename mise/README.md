@@ -28,7 +28,7 @@ Three things are yours to set, since they differ per machine:
 
 - `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` tasks.
   Example: `NVA_CLI = "uv run --quiet --project ~/projects/nva-aws-cli-tools ~/projects/nva-aws-cli-tools/cli.py"` in your `[env]`.
-- `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones (default: the current directory).
+- `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones and `repos:pull` looks for them (default: the current directory).
   A leading `~/` works in both, even though mise itself leaves it alone in `[env]`.
 - AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod-read` and `nva-prod-write`, under an SSO session named `sikt`.
   Prod has one profile per access level: `pipeline:overview` reads prod through `nva-prod-read`, and `nva-prod-write` is for changes.
@@ -78,6 +78,16 @@ The tasks that create or inspect worktrees fetch origin first; `--no-fetch` skip
 Aliases: `wta`, `wtc`, `wtl`, `wtr`, `wtp`.
 `wt:clone` prints the path of the default-branch worktree, so `cd "$(mise run -q wt:clone nva-nvi)"` works.
 
+## All repositories at once
+
+The `repos` tasks work on every clone directly under `NVA_REPOS_DIR` (or the current directory), in the worktree layout or as ordinary clones.
+
+`repos:pull [repository...]` fetches origin and fast-forwards the worktree that has the default branch checked out, eight repositories at a time, and prints one row per repository.
+It never touches a worktree with uncommitted changes or with local commits that are not on origin; untracked files do not count, since a fast-forward will not overwrite them.
+An ordinary clone with another branch checked out is skipped too.
+Name repositories to pull only those.
+The exit code is 1 when a fetch or a fast-forward failed.
+
 ## Tool versions
 
 `config.toml` pins every tool to an exact version, so a fresh install or a CI run never picks up a newer release on its own.
@@ -89,7 +99,7 @@ The mise version CI uses is pinned in `.github/workflows/check.yml`.
 
 ## Python commands
 
-Anything with shared logic is Python: the `nva-dev` Click CLI in `src/nva_dev_tools/`, one sub-package per command group (`worktrees/` is the `wt` group) plus `common/` for git, gh and output helpers.
+Anything with shared logic is Python: the `nva-dev` Click CLI in `src/nva_dev_tools/`, one sub-package per command group (`worktrees/` is the `wt` group, `repositories/` is `repos`) plus `common/` for git, gh and output helpers.
 The mise tasks for those commands are three-line bash shims that `exec uv run --quiet --project <repo> nva-dev wt ...`, so `mise run wt:prune --yes` and `nva-dev wt prune --yes` are the same thing.
 mise answers `--help` itself with the task card; for Click's help, with the options, run `mise run wt:prune -- --help` or `nva-dev wt prune --help`.
 `uv run` syncs the environment on first use; after that it adds under a tenth of a second per call.

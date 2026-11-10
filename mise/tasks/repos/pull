@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Fast-forward the default-branch worktree of every clone under NVA_REPOS_DIR to origin."
+#MISE dir="{{cwd}}"
+set -euo pipefail
+repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+exec uv run --quiet --project "$repo_root" nva-dev repos pull "$@"

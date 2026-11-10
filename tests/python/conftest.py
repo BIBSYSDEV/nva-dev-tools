@@ -101,7 +101,8 @@ class Repo:
 
 @pytest.fixture(autouse=True)
 def isolated_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep the developer's own git config (signing, hooks, aliases) out of the tests."""
+    """Keep the developer's own git config (signing, hooks, aliases) and NVA_REPOS_DIR out of the tests."""
+    monkeypatch.delenv("NVA_REPOS_DIR", raising=False)
     home = tmp_path / "home"
     home.mkdir()
     (home / "gitconfig").write_text("")
@@ -113,21 +114,28 @@ def isolated_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.com")
 
 
-@pytest.fixture
-def repo(tmp_path: Path) -> Repo:
-    origin = tmp_path / "origin"
-    origin.mkdir()
-    git("init", "-q", "-b", "main", cwd=origin)
-    git("commit", "-q", "--allow-empty", "-m", "init", cwd=origin)
+def make_origin(path: Path, default_branch: str = "main") -> Path:
+    path.mkdir(parents=True)
+    git("init", "-q", "-b", default_branch, cwd=path)
+    git("commit", "-q", "--allow-empty", "-m", "init", cwd=path)
+    return path
 
-    root = tmp_path / "repo"
-    git("clone", "-q", "--bare", "--single-branch", str(origin), str(root / ".bare"), cwd=tmp_path)
+
+def bare_clone(origin: Path, root: Path) -> Repo:
+    """A clone in the bare + worktrees layout, set up the way wt:clone does it."""
+    git("clone", "-q", "--bare", "--single-branch", str(origin), str(root / ".bare"), cwd=origin.parent)
     (root / ".git").write_text("gitdir: ./.bare\n")
     git("config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*", cwd=root)
     git("fetch", "-q", "origin", cwd=root)
     git("remote", "set-head", "origin", "--auto", cwd=root)
-    git("worktree", "add", "-q", str(root / "main"), "main", cwd=root)
-    return Repo(origin=origin, root=root, main=root / "main")
+    default_branch = git("symbolic-ref", "--short", "HEAD", cwd=root)
+    git("worktree", "add", "-q", str(root / default_branch), default_branch, cwd=root)
+    return Repo(origin=origin, root=root, main=root / default_branch)
+
+
+@pytest.fixture
+def repo(tmp_path: Path) -> Repo:
+    return bare_clone(make_origin(tmp_path / "origin"), tmp_path / "repo")
 
 
 def fake_pull_requests(**by_branch: PullRequest | None):
