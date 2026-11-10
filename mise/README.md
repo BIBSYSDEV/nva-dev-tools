@@ -3,25 +3,9 @@
 Tool versions and tasks for working on NVA, shared through [mise](https://mise.jdx.dev).
 Wire it in once; `git pull` in this repo is the update mechanism.
 
-## Setup
+## Settings
 
-Add to your mise config (`~/.config/mise/config.toml`, or a `mise.toml` in the folder holding your NVA clones):
-
-```toml
-include = ["/path/to/nva-dev-tools/mise/config.toml"]
-
-[task_config]
-includes = ["/path/to/nva-dev-tools/mise/tasks"]
-```
-
-Then:
-
-```bash
-mise trust /path/to/nva-dev-tools/mise/tasks
-mise install
-mise tasks ls
-```
-
+The setup steps are in the [root README](../README.md).
 Your own config wins over the shared one, so override a tool version locally if you need to.
 
 Three things are yours to set, since they differ per machine:
