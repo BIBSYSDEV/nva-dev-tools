@@ -121,6 +121,16 @@ def make_origin(path: Path, default_branch: str = "main") -> Path:
     return path
 
 
+def commit_files(origin: Path, files: dict[str, str]) -> None:
+    """One commit in origin that writes the files, given as path relative to the repository and content."""
+    for relative_path, content in files.items():
+        path = origin / relative_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    git("add", "--all", cwd=origin)
+    git("commit", "-q", "-m", "write files", cwd=origin)
+
+
 def bare_clone(origin: Path, root: Path) -> Repo:
     """A clone in the bare + worktrees layout, set up the way wt:clone does it."""
     git("clone", "-q", "--bare", "--single-branch", str(origin), str(root / ".bare"), cwd=origin.parent)

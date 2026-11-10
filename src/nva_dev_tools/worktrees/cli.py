@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from nva_dev_tools.common import gh, git
-from nva_dev_tools.common.output import error, print_table
+from nva_dev_tools.common.output import Cell, error, print_table, status_cell
 from nva_dev_tools.common.run import Refusal
 from nva_dev_tools.worktrees import actions
 from nva_dev_tools.worktrees.actions import PruneOutcome
@@ -67,16 +67,14 @@ def plan_with_progress(root: Path, *, fetch: bool, check_pr: bool, force: bool) 
 
 def print_outcomes(outcomes: list[PruneOutcome]) -> None:
     ordered = sorted(outcomes, key=lambda outcome: (ACTION_ORDER[outcome.action], outcome.worktree.name))
-    rows = [
-        [outcome.action, outcome.worktree.name, outcome.worktree.branch or "(detached)", ", ".join(outcome.notes)]
-        for outcome in ordered
-    ]
-    print_table(
-        ["STATUS", "WORKTREE", "BRANCH", "NOTES"],
-        rows,
-        styled_column=0,
-        row_style=lambda row: "red" if row[0] == "failed" else None,
-    )
+    print_table(["STATUS", "WORKTREE", "BRANCH", "NOTES"], [outcome_row(outcome) for outcome in ordered])
+
+
+def outcome_row(outcome: PruneOutcome) -> list[Cell]:
+    """A failed removal is red across the whole row, so it stands out in a long table."""
+    style = "red" if outcome.action == "failed" else ""
+    texts = [outcome.worktree.name, outcome.worktree.branch or "(detached)", ", ".join(outcome.notes)]
+    return [status_cell(outcome.action), *(Cell(text, style) for text in texts)]
 
 
 def print_plan(plan: list[PruneOutcome]) -> Counter[str]:
