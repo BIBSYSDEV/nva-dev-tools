@@ -20,4 +20,4 @@ run = "uv run --quiet pytest -q"
 
 [tasks.bump]
 description = "Bump the pinned CLIs in mise/config.toml to releases at least a week old."
-run = "mise upgrade --bump --minimum-release-age 7d uv cfn-lint gh jq shellcheck spectral yq"
+run = "mise upgrade --bump --minimum-release-age 7d uv aws-cli cfn-lint gh jq shellcheck spectral yq"
