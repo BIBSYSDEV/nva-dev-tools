@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
-#MISE description="Upgrade the Gradle wrapper to the latest release."
+#MISE description="Upgrade the Gradle wrapper to the newest release that is at least 7 days old, or to the given version."
 #MISE dir="{{cwd}}"
+#USAGE arg "[version]" help="Gradle version to use instead, without the cooldown (e.g. 9.8.2)"
 set -euo pipefail
 
-./gradlew :wrapper --gradle-version=latest
+current_version=$(sed -E -n 's/^distributionUrl=.*gradle-(.+)-(bin|all)\.zip$/\1/p' gradle/wrapper/gradle-wrapper.properties)
+target_version=${usage_version:-}
+if [[ -z "$target_version" ]]; then
+  newest_past_cooldown=$(mise latest gradle --minimum-release-age 7d)
+  # Never downgrade a wrapper that is already past what the cooldown allows
+  target_version=$(printf '%s\n' "$newest_past_cooldown" "$current_version" | sort -V | tail -n 1)
+fi
+
+if [[ "$target_version" == "$current_version" ]]; then
+  echo "The Gradle wrapper is already on $current_version" >&2
+  exit 0
+fi
+
+echo "Upgrading the Gradle wrapper from $current_version to $target_version" >&2
+./gradlew :wrapper --gradle-version="$target_version"
 ./gradlew :wrapper :wrapper --retries 3
