@@ -6,7 +6,7 @@ from conftest import Repo, bare_clone, make_origin
 from nva_dev_tools.common.git import git
 from nva_dev_tools.common.run import Refusal
 from nva_dev_tools.repositories import actions
-from nva_dev_tools.repositories.actions import FAILED, SKIPPED, UP_TO_DATE, UPDATED, PullResult
+from nva_dev_tools.repositories.actions import FAILED, SKIPPED, UP_TO_DATE, UPDATED
 
 
 def clone(tmp_path: Path, name: str, default_branch: str = "main") -> Repo:
@@ -89,18 +89,18 @@ def test_pull_reports_a_failed_fetch_with_the_reason(repo: Repo) -> None:
     assert status == FAILED and detail.startswith("fetch failed: ") and "gone" in detail
 
 
-def test_pull_all_keeps_the_order_and_reports_each_as_it_ends(tmp_path: Path) -> None:
+def test_in_parallel_keeps_the_order_and_reports_each_clone_as_it_ends(tmp_path: Path) -> None:
     repos = [clone(tmp_path, name) for name in ("nva-commons", "nva-nvi", "nva-search-api")]
     repos[0].origin_commit()
     break_fetch(repos[1])
-    heard: list[PullResult] = []
-    results = actions.pull_all([repo.root for repo in repos], progress=heard.append)
+    heard: list[Path] = []
+    results = actions.in_parallel(actions.pull, [repo.root for repo in repos], progress=heard.append)
     assert [(result.repository, result.status) for result in results] == [
         ("nva-commons", UPDATED),
         ("nva-nvi", FAILED),
         ("nva-search-api", UP_TO_DATE),
     ]
-    assert sorted(result.repository for result in heard) == ["nva-commons", "nva-nvi", "nva-search-api"]
+    assert sorted(clone.name for clone in heard) == ["nva-commons", "nva-nvi", "nva-search-api"]
 
 
 def test_find_repositories_takes_clones_only_sorted_by_name(tmp_path: Path) -> None:

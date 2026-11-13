@@ -28,7 +28,7 @@ Three things are yours to set, since they differ per machine:
 
 - `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` tasks.
   Example: `NVA_CLI = "uv run --quiet --project ~/projects/nva-aws-cli-tools ~/projects/nva-aws-cli-tools/cli.py"` in your `[env]`.
-- `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones and `repos:pull` looks for them (default: the current directory).
+- `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones and the `repos` tasks look for them (default: the current directory).
   A leading `~/` works in both, even though mise itself leaves it alone in `[env]`.
 - AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod-read` and `nva-prod-write`, under an SSO session named `sikt`.
   Prod has one profile per access level: `pipeline:overview` reads prod through `nva-prod-read`, and `nva-prod-write` is for changes.
@@ -80,13 +80,12 @@ Aliases: `wta`, `wtc`, `wtl`, `wtr`, `wtp`.
 
 ## All repositories at once
 
-The `repos` tasks work on every clone directly under `NVA_REPOS_DIR` (or the current directory), in the worktree layout or as ordinary clones.
+The `repos` tasks work on every clone in `NVA_REPOS_DIR` (or the current directory), or only on the repositories you name.
 
-`repos:pull [repository...]` fetches origin and fast-forwards the worktree that has the default branch checked out, eight repositories at a time, and prints one row per repository.
-It never touches a worktree with uncommitted changes or with local commits that are not on origin; untracked files do not count, since a fast-forward will not overwrite them.
-An ordinary clone with another branch checked out is skipped too.
-Name repositories to pull only those.
-The exit code is 1 when a fetch or a fast-forward failed.
+| Task | Does |
+| --- | --- |
+| `repos:pull [repository...]` | Brings the default branch of every clone up to date with origin. Clones with uncommitted changes or local commits are left alone. |
+| `repos:versions [repository...]` | Shows the last commit and the Java, Gradle, nva-commons and nva-gradle-plugins versions of every repository, with ⚠ where one is behind the newest. `--format markdown` or `--format json` for other output. |
 
 ## Tool versions
 

@@ -14,8 +14,8 @@ UP_TO_DATE = "up to date"
 SKIPPED = "skipped"
 FAILED = "failed"
 
-PARALLEL_PULLS = 8
-"""A pull mostly waits for the network, so a few at a time cut the wall-clock time for 30+ clones."""
+PARALLEL_CLONES = 8
+"""Work on a clone mostly waits for the network or git, so a few at a time cut the wall-clock time for 30+ clones."""
 
 
 @dataclass(frozen=True)
@@ -50,14 +50,23 @@ def find_repositories(clones_folder: Path, names: tuple[str, ...] = ()) -> list[
     return [clones_by_name[name] for name in names]
 
 
-def pull_all(clones: list[Path], *, progress: Callable[[PullResult], None] | None = None) -> list[PullResult]:
-    """pull() for every clone, a few at a time. Results keep the order of clones; progress hears of each as it ends."""
-    with ThreadPoolExecutor(max_workers=PARALLEL_PULLS) as executor:
-        futures = [executor.submit(pull, clone) for clone in clones]
-        for finished in as_completed(futures):
+def in_parallel[Result](
+    function: Callable[[Path], Result], clones: list[Path], *, progress: Callable[[Path], None] | None = None
+) -> list[Result]:
+    """function() for every clone, a few at a time. Results keep the order of clones; progress hears of each clone
+    as it ends."""
+    with ThreadPoolExecutor(max_workers=PARALLEL_CLONES) as executor:
+        clones_by_future = {executor.submit(function, clone): clone for clone in clones}
+        for finished in as_completed(clones_by_future):
             if progress is not None:
-                progress(finished.result())
-        return [future.result() for future in futures]
+                progress(clones_by_future[finished])
+        return [future.result() for future in clones_by_future]
+
+
+def fetch_origin(clone: Path) -> str | None:
+    """Fetch and prune origin. None when that worked, otherwise the reason git gives."""
+    fetched = run(["git", "fetch", "--quiet", "--prune", "origin"], cwd=clone, check=False)
+    return None if fetched.returncode == 0 else first_line(fetched.stderr)
 
 
 def pull(clone: Path) -> PullResult:
@@ -75,9 +84,9 @@ def pull(clone: Path) -> PullResult:
 
 
 def _pull(clone: Path) -> tuple[str, str]:
-    fetched = run(["git", "fetch", "--quiet", "--prune", "origin"], cwd=clone, check=False)
-    if fetched.returncode != 0:
-        return FAILED, f"fetch failed: {_first_line(fetched.stderr)}"
+    fetch_failure = fetch_origin(clone)
+    if fetch_failure is not None:
+        return FAILED, f"fetch failed: {fetch_failure}"
     default_ref = git.default_ref(clone)
     default_branch = default_ref.removeprefix("origin/")
     if not git.remote_branch_exists(default_branch, clone):
@@ -97,7 +106,7 @@ def _pull(clone: Path) -> tuple[str, str]:
         return UP_TO_DATE, before
     merged = run(["git", "merge", "--ff-only", "--quiet", default_ref], cwd=worktree, check=False)
     if merged.returncode != 0:
-        return FAILED, f"fast-forward failed: {_first_line(merged.stderr)}"
+        return FAILED, f"fast-forward failed: {first_line(merged.stderr)}"
     after = git.git("rev-parse", "--short", "HEAD", cwd=worktree)
     return UPDATED, f"{before}..{after} ({_commits(behind)})"
 
@@ -106,7 +115,7 @@ def _commits(count: int) -> str:
     return f"{count} commit" if count == 1 else f"{count} commits"
 
 
-def _first_line(stderr: str) -> str:
+def first_line(stderr: str) -> str:
     """The reason git gives. What follows is generic advice, such as "make sure ... the repository exists"."""
     lines = stderr.strip().splitlines()
     return lines[0] if lines else "no message from git"

@@ -1,5 +1,6 @@
 import sys
-from collections.abc import Callable
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 from rich.console import Console
 from rich.table import Table
@@ -16,7 +17,7 @@ STYLES = {
     "up to date": "dim",
     "skipped": "yellow",
 }
-"""Colours for action and state cells. Rich drops them when stdout is not a terminal."""
+"""Colours for status cells, see status_cell(). Rich drops them when stdout is not a terminal."""
 
 
 def console() -> Console:
@@ -32,23 +33,28 @@ def error(message: str) -> None:
     print(message, file=sys.stderr)
 
 
-def print_table(
-    headers: list[str],
-    rows: list[list[str]],
-    *,
-    styled_column: int | None = None,
-    row_style: Callable[[list[str]], str | None] | None = None,
-) -> None:
-    """A borderless table. styled_column colours that cell by its value (see STYLES); row_style colours whole rows.
+@dataclass(frozen=True)
+class Cell:
+    """One table cell: text and an optional style such as "yellow".
 
-    Cells are plain text, not Rich markup, so a git message with [brackets] in it prints as it is.
+    The text is printed as it is, never read as Rich markup, so a git message with [brackets] stays intact.
     """
+
+    text: str
+    style: str = ""
+
+
+def status_cell(status: str) -> Cell:
+    """A status such as prune, failed or up to date, coloured from STYLES."""
+    return Cell(status, STYLES.get(status, ""))
+
+
+def print_table(headers: list[str], rows: Sequence[Sequence[str | Cell]]) -> None:
+    """A borderless table. A str is a cell without a style."""
     table = Table(box=None, show_edge=False, pad_edge=False, header_style="bold")
     for header in headers:
         table.add_column(header, no_wrap=True)
     for row in rows:
-        cells = [Text(cell) for cell in row]
-        if styled_column is not None:
-            cells[styled_column].style = STYLES.get(row[styled_column], "")
-        table.add_row(*cells, style=row_style(row) if row_style else None)
+        cells = [Cell(cell) if isinstance(cell, str) else cell for cell in row]
+        table.add_row(*(Text(cell.text, style=cell.style) for cell in cells))
     console().print(table)
