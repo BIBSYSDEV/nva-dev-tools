@@ -91,6 +91,7 @@ Deprecation warnings are not failures; mention them in "Worth a look" if they wi
 ## Dependabot
 
 Many repositories have `.github/dependabot.yml` for Gradle and GitHub Actions with a 7-day cooldown and grouped minor/patch updates.
-It does not bump majors, nva-commons (it does not follow `gradle.properties` into the catalog), the Gradle wrapper, or the Java runtime, which is exactly what this skill covers.
-It only sees the nva-gradle-plugins pin when `directories` lists `/buildSrc` or `/build-logic` next to `/`.
-Step 7 in SKILL.md checks the config and adds or fixes it in a stacked follow-up PR.
+It does not bump nva-commons (it does not follow `nvaCommonsVersion` in `gradle.properties` into the catalog) or the Java runtime.
+It does open pull requests for the Gradle wrapper and for majors, but this skill covers those too, so an open Dependabot pull request for something the bump PR already moved can be closed.
+It finds the nva-gradle-plugins pin in `buildSrc/build.gradle` or `build-logic/build.gradle` from the root directory, so the Gradle entry lists only `/`.
+Step 7 in SKILL.md compares the config with the shared template in nva-github-workflows and adds or fixes it in a stacked follow-up PR.
