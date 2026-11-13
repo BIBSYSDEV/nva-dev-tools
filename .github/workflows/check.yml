@@ -32,10 +32,6 @@ jobs:
       - name: Show resolved tools
         run: mise ls
 
-      # For `claude plugin validate` in the check task, which needs no login
-      - name: Install Claude Code
-        run: npm install --global @anthropic-ai/claude-code@2.1.322
-
       - name: Lint
         run: mise run check
 
