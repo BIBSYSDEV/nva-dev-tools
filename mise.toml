@@ -1,6 +1,11 @@
 # For working on this repo. mise/config.toml (shared tools) is loaded automatically.
 # The shared build task applies here as well: it runs the check task below, then pytest.
 
+[tools]
+# Only for `claude plugin validate` in the check task. Pinned here and not in mise/config.toml,
+# which is part of everyone's global config and would decide which Claude Code the whole team runs.
+claude-code = "2.1.322"
+
 [task_config]
 includes = ["mise/tasks"]
 
@@ -8,10 +13,13 @@ includes = ["mise/tasks"]
 description = "Run all linter checks."
 run = [
   # -x follows the sourced tasks/lib files, which are only meaningful in the context of their callers
-  "find mise/tasks -type f -perm -u+x -print0 | xargs -0 shellcheck --shell=bash -x",
+  "find mise/tasks plugins -type f -perm -u+x -print0 | xargs -0 shellcheck --shell=bash -x",
   "uv run --quiet ruff check",
   "uv run --quiet ruff format --check",
   "uv run --quiet ty check",
+  # Warns about the missing plugin version, which is left out on purpose: every push to main is a release.
+  # mise exec runs the pinned version even when your own claude comes first on PATH.
+  "mise exec -- claude plugin validate .",
 ]
 
 [tasks.test]
@@ -19,5 +27,5 @@ description = "Run the Python tests."
 run = "uv run --quiet pytest -q"
 
 [tasks.bump]
-description = "Bump the pinned CLIs in mise/config.toml to releases at least a week old."
-run = "mise upgrade --bump --minimum-release-age 7d uv aws-cli cfn-lint gh jq shellcheck spectral yq"
+description = "Bump the pinned CLIs in mise/config.toml and this file to releases at least a week old."
+run = "mise upgrade --bump --minimum-release-age 7d uv aws-cli cfn-lint claude-code gh jq shellcheck spectral yq"

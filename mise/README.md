@@ -76,6 +76,7 @@ The `repos` tasks work on every clone in `NVA_REPOS_DIR` (or the current directo
 `config.toml` pins every tool to an exact version, so a fresh install or a CI run never picks up a newer release on its own.
 The exception is Java, which takes any Corretto 21 patch release.
 Dependabot does not understand mise, so run `mise run bump` in this repo now and then and open a pull request with the result; it bumps the CLIs (aws-cli, cfn-lint, gh, jq, shellcheck, spectral, yq, uv) and only picks releases at least a week old.
+It also bumps the Claude Code pin in the root `mise.toml`, which only the `check` task in this repo uses.
 Runtimes (Java, Node, Python) are bumped by hand.
 Bump Python together with `.python-version` in this repo, which tells uv which interpreter to build the virtual environment with.
 The mise version CI uses is pinned in `.github/workflows/check.yml`.
