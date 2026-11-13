@@ -6,6 +6,7 @@ import click
 
 from nva_dev_tools.common.output import error
 from nva_dev_tools.common.run import CommandError, Refusal
+from nva_dev_tools.repositories.cli import repos
 from nva_dev_tools.worktrees.cli import wt
 
 EXIT_REFUSED = 1
@@ -17,6 +18,7 @@ def cli() -> None:
     """Local development workflow for NVA."""
 
 
+cli.add_command(repos)
 cli.add_command(wt)
 
 
