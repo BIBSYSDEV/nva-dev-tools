@@ -13,8 +13,7 @@ This skill keeps issues short and alike: the title says what is wrong or wanted,
 
 | What | Value |
 | --- | --- |
-| Site | `sikt.atlassian.net`, links as `https://sikt.atlassian.net/browse/NP-1234` |
-| Cloud ID | `03cbbec7-5724-4dce-8a65-494b98e1cb4d` (pass it as `cloudId` to every Atlassian tool) |
+| Site | `sikt.atlassian.net` (pass it as `cloudId` to every Atlassian tool), links as `https://sikt.atlassian.net/browse/NP-1234` |
 | Project | `NP` ("NVA-pilot") |
 | Statuses in use | Backlog, Selected for Development, In progress, QA, Done, WontFix |
 
