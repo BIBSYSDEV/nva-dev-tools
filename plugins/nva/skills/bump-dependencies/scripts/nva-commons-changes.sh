@@ -13,8 +13,8 @@
 # Usage:
 #   ./nva-commons-changes.sh <old-version> <new-version> [nva-commons-checkout]
 #
-# The checkout defaults to the nva-commons clone in $NVA_REPOS_DIR (default
-# ~/projects/nva). Any clone layout works, since the script only runs git.
+# The checkout defaults to the nva-commons clone in $NVA_REPOS_DIR, which must
+# then be set. Any clone layout works, since the script only runs git.
 #
 set -euo pipefail
 
@@ -25,10 +25,16 @@ fi
 
 old_version=$1
 new_version=$2
-repos_dir=${NVA_REPOS_DIR:-$HOME/projects/nva}
-# mise leaves a leading ~ in [env] values as it is
-repos_dir=${repos_dir/#\~\//$HOME/}
-checkout=${3:-$repos_dir/nva-commons}
+
+if [[ -n "${3:-}" ]]; then
+  checkout=$3
+elif [[ -n "${NVA_REPOS_DIR:-}" ]]; then
+  # mise leaves a leading ~ in [env] values as it is
+  checkout=${NVA_REPOS_DIR/#\~\//$HOME/}/nva-commons
+else
+  echo "Set NVA_REPOS_DIR to the folder that holds your NVA clones, or pass the nva-commons checkout as the third argument" >&2
+  exit 1
+fi
 
 if [[ ! -d "$checkout/.git" && ! -f "$checkout/.git" ]]; then
   echo "No nva-commons checkout at $checkout" >&2

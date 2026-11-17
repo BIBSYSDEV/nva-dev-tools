@@ -39,21 +39,39 @@ fi
 cooldown_days=${COOLDOWN_DAYS:-7}
 cutoff=$(date -u -v-"${cooldown_days}"d +%Y-%m-%d 2>/dev/null || date -u -d "$cooldown_days days ago" +%Y-%m-%d)
 
-# Prints "<target> <newest> <pinned-is-newer>": the newest stable release
-# published on or before the cutoff, the newest release overall, and 1 when
-# the currently pinned release (by its version comment) is newer than the
-# target, so the caller never proposes a downgrade. Repositories without
+highest_version() {
+  sort -V | tail -n 1
+}
+
+# Succeeds when the first version is higher than the second. A leading v is
+# ignored, and versions with different prefixes (release-1.3.0 against 1.2.0,
+# or a comment that is no version at all) are never compared.
+is_higher_version() {
+  local candidate=${1#v} reference=${2#v}
+  [[ "${candidate%%[0-9]*}" == "${reference%%[0-9]*}" && "$candidate" != "$reference" ]] || return 1
+  [[ "$(printf '%s\n' "$candidate" "$reference" | highest_version)" == "$candidate" ]]
+}
+
+# Prints "<target> <newest> <pinned-is-newer>": the highest stable release
+# published on or before the cutoff, the highest release overall, and 1 when
+# the currently pinned release (by its version comment) is higher than the
+# target, so the caller never proposes a downgrade. Versions are compared
+# instead of trusting the order GitHub lists releases in, where a backport to
+# an older major can come before the newest release. Repositories without
 # releases fall back to their newest tag, which has no publish date, so no
 # cooldown applies there.
 latest_tag() {
-  local repo=$1 pinned=$2 releases
+  local repo=$1 pinned=$2 releases target newest pinned_is_newer=0
   releases=$(gh api "repos/$repo/releases?per_page=30" \
     --jq '.[] | select(.draft == false and .prerelease == false) | "\(.tag_name) \(.published_at[0:10])"' 2>/dev/null || true)
   if [[ -n "$releases" ]]; then
-    echo "$releases" | awk -v cutoff="$cutoff" -v pinned="$pinned" '
-      NR == 1 { newest = $1 }
-      $1 == pinned && $2 > cutoff { pinned_is_newer = 1 }
-      $2 <= cutoff { print $1, newest, pinned_is_newer + 0; exit }'
+    target=$(echo "$releases" | awk -v cutoff="$cutoff" '$2 <= cutoff { print $1 }' | highest_version)
+    [[ -z "$target" ]] && return 0
+    newest=$(echo "$releases" | cut -d' ' -f1 | highest_version)
+    if is_higher_version "$pinned" "$target"; then
+      pinned_is_newer=1
+    fi
+    echo "$target $newest $pinned_is_newer"
     return
   fi
   local tag
