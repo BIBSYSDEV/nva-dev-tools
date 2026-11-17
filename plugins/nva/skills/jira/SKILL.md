@@ -27,6 +27,7 @@ A SPIKE cannot be the child of a Story, so an investigation that belongs under o
 ## Ground rules
 
 - **Draft first, write after a yes.** Creating, editing, commenting, linking, assigning and moving are all visible to the team and notify watchers. Show the exact result first (type, title, description, parent, labels, links), and write only after the user approves that draft. A changed draft needs a new yes.
+- **Mark what you wrote.** Start every description you draft or rewrite, and every comment you post, with `🤖` and a space, so readers can tell it from what a person typed. Use the emoji character itself, not `:robot:`. The title gets no mark. Text a person wrote never gets one either: a small edit to someone else's description leaves its start as it is, and a review does not ask for the mark.
 - **Look before you write.** Before creating, search for an open issue that already covers it. Before editing, read the whole issue, its links and its parent.
 - **Keep other people's words.** On an issue someone else wrote, change only what the user asked for. Rewriting a description into the template is a rewrite: show it before and after, and move what you cut into a comment rather than dropping it.
 - **Do not lose rich content.** When a read reports `appliedContentFormat: html` (mentions, emoji, images, panels), edit in HTML and write it back with `contentFormat: html`; markdown silently drops those parts.
