@@ -219,3 +219,7 @@ __marimo__/
 
 # Other
 .idea
+.DS_Store
+
+# Reports from claude plugin eval
+plugins/*/evals/results/
