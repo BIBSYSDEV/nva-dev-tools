@@ -1,0 +1,14 @@
+{
+  "name": "nva-dev-tools",
+  "description": "Claude Code plugins for NVA development.",
+  "owner": {
+    "name": "NVA developers at Sikt"
+  },
+  "plugins": [
+    {
+      "name": "nva",
+      "source": "./plugins/nva",
+      "description": "Skills for working on NVA repositories."
+    }
+  ]
+}
