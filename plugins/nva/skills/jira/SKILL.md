@@ -6,69 +6,61 @@ description: Create, edit, comment on, link, move and find issues in NVA's Jira 
 # Jira for NVA
 
 All NVA work is tracked in one Jira project, and most of it is read by people skimming a board.
-This skill keeps issues short and alike: the title says what is wrong or wanted, the description says why and when it is done, and the how is left to the pull request.
-`references/template.md` is the template itself; read it before drafting, rewriting or reviewing an issue.
+`references/template.md` is the team's issue template; read it before drafting, rewriting or reviewing an issue.
 
 ## Project facts
 
 | What | Value |
 | --- | --- |
-| Site | `sikt.atlassian.net` (pass it as `cloudId` to every Atlassian tool), links as `https://sikt.atlassian.net/browse/NP-1234` |
+| Site | `sikt.atlassian.net`, issues link as `https://sikt.atlassian.net/browse/NP-1234` |
 | Project | `NP` ("NVA-pilot") |
 | Statuses in use | Backlog, Selected for Development, In progress, QA, Done, WontFix |
 
-Developers create four issue types: **Bug**, **Technical debt**, **SPIKE** and **Sub-task**.
+Developers create **Bug**, **Technical debt**, **SPIKE** and **Sub-task**.
 Product owners create **Epic**, **Story** and **Task**, so never create those.
-When the user asks for one, say so and offer what fits instead: a Sub-task under the product owner's Story or Task, Technical debt for internal work, or a draft the product owner can create themselves.
-A Sub-task needs a `parent`, and only expands an existing issue: a Story or Task from the product owners, or a Technical debt issue that groups our own cleanup.
-A SPIKE cannot be the child of a Story, so an investigation that belongs under one is a Sub-task with `Spike: ` at the start of the title.
+When the user asks for one, say so and offer what fits: Technical debt for internal work, a Sub-task when there is a parent to hang it on, or a draft the product owner creates themselves.
+A Sub-task needs a parent and only expands an existing issue.
+A SPIKE cannot sit under a Story, so an investigation that belongs there is a Sub-task titled `Spike: …`.
 
 ## Ground rules
 
-- **Draft first, write after a yes.** Creating, editing, commenting, linking, assigning and moving are all visible to the team and notify watchers. Show the exact result first (type, title, description, parent, labels, links), and write only after the user approves that draft. A changed draft needs a new yes.
-- **Mark what you wrote.** Start every description you draft or rewrite, and every comment you post, with `🤖` and a space, so readers can tell it from what a person typed. Use the emoji character itself, not `:robot:`. The title gets no mark. Text a person wrote never gets one either: a small edit to someone else's description leaves its start as it is, and a review does not ask for the mark.
-- **Look before you write.** Before creating, search for an open issue that already covers it. Before editing, read the whole issue, its links and its parent.
-- **Keep other people's words.** On an issue someone else wrote, change only what the user asked for. Rewriting a description into the template is a rewrite: show it before and after, and move what you cut into a comment rather than dropping it.
-- **Do not lose rich content.** When a read reports `appliedContentFormat: html` (mentions, emoji, images, panels), edit in HTML and write it back with `contentFormat: html`; markdown silently drops those parts.
-- **Leave triage fields alone.** Do not set priority, sprint, assignee, story points or fix version unless the user asks. The team sets them when it plans.
-- **Labels exist before you use them.** Use the repository's name as the label when the issue is about one repository (`publication-api`, `nva-nvi`, `nva-infrastructure`). Use a label only when `project = NP AND labels = "<label>"` finds other issues with it, and otherwise ask. On edit, send the full list, since labels are replaced, not appended.
-- **Close, never delete.** An issue that should not exist is moved to WontFix, or linked as a duplicate and closed. Do not delete issues or comments.
-- **Always end with links.** After any write, reply with the clickable issue link and one line on what changed.
+- **Draft first, write after a yes.** Every write is visible to the team and notifies watchers.
+  Show the exact result (type, title, description, parent, labels, links) and write only after the user approves it.
+  A changed draft needs a new yes.
+- **Mark what you wrote.** A description you wrote or rewrote in full, and every comment you post, starts with `🤖` and a space: the emoji itself, not `:robot:`.
+  A targeted edit inside someone else's description leaves its opening alone, and a title never gets the mark.
+- **Look before you write.** Search for an issue that already covers it before creating.
+  Read the whole issue, its links and its parent before editing.
+- **Keep other people's words.** Change only what was asked.
+  A rewrite into the template is still a rewrite: show before and after, and move what you cut into a comment instead of dropping it.
+- **Keep rich content.** An issue holding mentions, images or panels is returned as HTML, because markdown cannot hold those parts.
+  Edit it as HTML and write it back as HTML instead of converting it to markdown.
+- **Labels are replaced, not appended**, so send the full list.
+  Use a repository name (`publication-api`, `nva-nvi`, `nva-infrastructure`) when the issue is about one repository, and use a label only when `project = NP AND labels = "<label>"` finds other issues with it.
+- **Close, never delete.** An issue that should not exist goes to WontFix, or is linked as a duplicate and closed.
+- **End with the link.** After any write, reply with the clickable issue link and one line on what changed.
 
 ## Tasks
 
-### Create an issue
+**Create.** Work out type, parent and subject from the conversation and the repository the user is in, asking only for what you cannot infer.
+Check for duplicates with `project = NP AND statusCategory != Done AND text ~ "<two or three key words>"` and show close matches.
+Read the parent so the issue does not repeat its context and uses its language.
+Draft from the template, show it, and create it after a yes.
+When linking as Blocks, the inward issue is the one that blocks and the outward issue the one that waits.
+Several issues at once (a plan split into sub-tasks) are drafted together, links included, and created in one go after a single yes.
 
-1. Work out the type, the parent (if any) and what the issue is about from the conversation and the repository the user is in. Ask only for what you cannot infer.
-2. Search for duplicates: `project = NP AND statusCategory != Done AND text ~ "<two or three key words>"`. Show close matches and ask whether to go on.
-3. Read the parent, if any, so the issue does not repeat its context and uses its language.
-4. Draft the issue from `references/template.md` and show it.
-5. On a yes, call `createJiraIssue` with `projectKey: "NP"`, `issueType`, `summary`, `description` (markdown), `labels` and `parent`.
-6. Add issue links with `createJiraIssueLink` through `executeWrite`. With `linkType: "Blocks"`, `inwardIssue` is the one that blocks and `outwardIssue` the one that waits.
-7. Reply with the link.
+**Edit.** Read the issue with its links and parent.
+Show the new title or description next to the old one.
+Tidying into the template means cutting implementation details, logs and status notes, and offering to post them as a comment so nothing the reporter found is lost.
 
-When the user asks for several issues at once (splitting a plan into sub-tasks), draft all of them in one message, with the links between them, and create them in one go after a single yes.
-
-### Edit an issue
-
-Read it with `getJiraIssue` and `view: "evidence"`, which also returns links and parent.
-Change only what was asked, show the new title or description next to the old one, and write with `editJiraIssue` after a yes.
-When asked to tidy an issue into the template, cut implementation details, logs and status notes from the description and offer to post them as a comment, so nothing the reporter found is lost.
-
-### Comment
-
-Comments are where progress, findings and the how go, since the description is the spec.
-Use the comment shape in `references/template.md`, in the issue's language, and post with `addOrEditJiraIssueComment` after a yes.
+**Comment.** Progress, findings and the how go here, since the description is the spec.
+Use the comment shape in the template, in the issue's language.
 Edit only comments the user wrote.
 
-### Move or assign
+**Move or assign.** Pick the transition from the ones the issue actually offers and go by its id: a transition's name is often not the target status.
+"Assign to me" uses the user's own account id; other people are looked up by name first.
 
-Find the transition with `listJiraIssueTransitions` (`executeRead`) and pass its id to `transitionJiraIssue`; a transition's name is often not the target status.
-"Assign to me" uses the account id from `atlassianUserInfo`; other people are looked up with `listJiraIssueAssignableUsers`.
-
-### Find issues
-
-Search with `searchJiraIssuesUsingJql` and `fields: ["summary", "status", "issuetype", "assignee", "labels"]` to keep results small, and answer with a table that links every key.
+**Find.** Ask for only the fields you need (summary, status, type, assignee, labels) so results stay small, and answer with a table that links every key.
 
 | Question | JQL |
 | --- | --- |
@@ -78,7 +70,5 @@ Search with `searchJiraIssuesUsingJql` and `fields: ["summary", "status", "issue
 | What I reported lately | `project = NP AND reporter = currentUser() AND created >= -14d` |
 | Free text | `project = NP AND text ~ "scopus import" AND statusCategory != Done` |
 
-### Review an issue
-
-Check it against `references/template.md`: a title that stands on its own, a description that fits on one screen, acceptance criteria someone can check, evidence for a bug, and no implementation details.
+**Review.** Check against the template: a title that stands on its own, a description that fits on one screen, acceptance criteria someone can check, evidence for a bug, no implementation details.
 Answer with what to change and a suggested rewrite; write it only when asked.
