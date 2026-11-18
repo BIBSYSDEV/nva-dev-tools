@@ -145,21 +145,28 @@ Then give the user the PR link and the same summary.
 
 ### Step 7: Dependabot config (stacked follow-up PR)
 
-Dependabot handles the minor and patch bumps between these maintenance PRs, so every repository should have `.github/dependabot.yml`, configured like its siblings.
+Dependabot handles the minor and patch bumps between these maintenance PRs, so every repository should have `.github/dependabot.yml`, following the shared template.
 A missing or deviating config is a separate concern from the bump, so it goes in its own PR stacked on top of the bump PR, not in the bump PR itself.
-Skip the step when the config already matches the checklist below, and say so in the summary.
+Skip the step when the config already matches the template, and say so in the summary.
 
-A config is set up properly when it has:
+The template is `templates/dependabot.yml` in nva-github-workflows, and it is the source of truth: fetch it every time instead of copying a sibling repository's config or writing one from memory, since the siblings have drifted.
 
-- One `updates` entry per package ecosystem the repository uses (`gradle`, `npm` or `uv`), plus one for `github-actions`.
-- For Gradle, `directories` listing `/` and the build-logic folder (`/buildSrc` or `/build-logic`), since that is where nva-gradle-plugins is pinned and Dependabot does not look there otherwise.
-- `cooldown: default-days: 7`, matching the 7-day rule used for the outdated report.
-- Minor and patch updates grouped (`<ecosystem>-minor-and-patch`), so each ecosystem gets one PR a week instead of one per library.
-- `commit-message.prefix` set to `build` for packages and `ci` for actions, so Dependabot's commits follow the conventions below.
-- A weekly schedule on Monday at 07:00, `timezone: Europe/Oslo`.
+```bash
+gh api repos/BIBSYSDEV/nva-github-workflows/contents/templates/dependabot.yml -H "Accept: application/vnd.github.raw"
+```
 
-Templates: nva-handle-service for `buildSrc`, nva-search-api or nva-publication-api for `build-logic`, NVA-Frontend for npm and nva-aws-cli-tools for uv.
-nva-nvi has the same shape, but lists only `/` even though it has `build-logic`.
+The "Dependabot" section of that repository's README explains each setting.
+A Gradle repository uses the template as it is.
+Adapt it only where the repository differs:
+
+- npm or uv instead of Gradle: change `package-ecosystem`, rename the group to match (`npm-minor-and-patch`, `python-minor-and-patch`) and remove the cooldown `exclude`, which only names our own Maven artifacts.
+- More than one ecosystem: one `updates` entry per ecosystem, plus the one for `github-actions`.
+- No package ecosystem at all (only workflows): keep just the `github-actions` entry.
+
+An existing config matches when it differs from the template only in those ways.
+Groups a repository added on purpose for related packages (NVA-Frontend has several) stay as they are.
+A Gradle entry that lists `/buildSrc` or `/build-logic` next to `/` deviates: the root directory already covers both (Dependabot opened nva-person-preferences#41 for `buildSrc/build.gradle` and nva-search-api#800 for `build-logic/build.gradle` with only `/` configured), so replace `directories` with `directory: "/"`.
+
 Validate the file with `uvx check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml`; the gate has nothing to check here, since only `.github/` changes.
 
 `gh stack` has no `-C` flag, so run each call as `cd <worktree> && gh stack ...`:
@@ -170,12 +177,12 @@ cd <worktree> && gh stack init <bump-branch>    # adopts the bump branch and its
 cd <worktree> && gh stack add "$(date +%F)-dependabot-config"
 # write or fix .github/dependabot.yml, then validate it
 git -C <worktree> add .github/dependabot.yml
-git -C <worktree> commit -m "ci: Add Dependabot config" -m "<what it updates and from which template>"
+git -C <worktree> commit -m "ci: Add Dependabot config" -m "<what it updates and how it differs from the template, if at all>"
 cd <worktree> && gh stack submit --auto --open  # PR title and body come from the commit
 cd <worktree> && gh stack bottom                # put the worktree back on the branch it is named after
 ```
 
-Use `ci: Update Dependabot config` when fixing an existing file, and say in the commit body what was missing.
+Use `ci: Update Dependabot config` when fixing an existing file, and say in the commit body what differed from the template.
 If `submit` exits with code 9 (stacked PRs not enabled on the repository), push the branch and open the PR with `gh pr create --base <bump-branch>` instead.
 
 ### Step 8: Runtime major upgrade (stacked PR)
