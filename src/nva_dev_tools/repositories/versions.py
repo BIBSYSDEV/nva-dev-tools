@@ -13,7 +13,8 @@ Where each version comes from (first match wins):
                       buildSrc/ build.gradle(.kts)
 nva-commons and nva-gradle-plugins report their own version with the note "self".
 
-Code owners are everyone .github/CODEOWNERS names, in any repository, Gradle or not.
+Code owners are everyone the CODEOWNERS file names, in any repository, Gradle or not. Like GitHub, only the
+first file found in .github/, the root or docs/ counts.
 """
 
 import re
@@ -33,7 +34,8 @@ BUILD_LOGIC_FOLDERS = ("build-logic", "buildSrc")
 BUILD_FILES = ("build.gradle", "build.gradle.kts")
 GRADLE_PROJECT_MARKERS = ("gradlew", "settings.gradle", "settings.gradle.kts")
 PLUGINS_DEFAULTS_FILE = "src/main/resources/nva-plugin.properties"
-CODEOWNERS_FILE = ".github/CODEOWNERS"
+CODEOWNERS_FILES = (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS")
+"""Where GitHub looks for CODEOWNERS, in its order; it uses the first one it finds."""
 
 GRADLE_DISTRIBUTION = re.compile(r"^distributionUrl=.*gradle-([\w.-]+?)-(?:bin|all)\.zip", re.MULTILINE)
 PLUGINS_COORDINATE = re.compile(r"com\.github\.bibsysdev:nva-gradle-plugins:(\d[\w.-]*)['\"]")
@@ -80,7 +82,7 @@ class RepositoryVersions:
         default_factory=lambda: {column: DeclaredVersion() for column in COLUMNS}
     )
     code_owners: list[str] = field(default_factory=list)
-    """Users, teams or emails in .github/CODEOWNERS, each once, in the order they first appear."""
+    """Users, teams or emails in the CODEOWNERS file GitHub uses, each once, in the order they first appear."""
     problem: str | None = None
     """Why the versions may be missing or out of date, such as a failed fetch."""
 
@@ -126,7 +128,7 @@ def _read(clone: Path, report: RepositoryVersions, *, fetch: bool) -> None:
     report.last_commit = datetime.fromisoformat(git.git("log", "-1", "--format=%cI", default_ref, cwd=clone))
 
     files = DefaultBranchFiles(clone, default_ref)
-    report.code_owners = _code_owners(files.read(CODEOWNERS_FILE))
+    report.code_owners = _code_owners(next((files.read(path) for path in CODEOWNERS_FILES if files.exists(path)), ""))
     if not any(files.exists(marker) for marker in GRADLE_PROJECT_MARKERS):
         return
     plugins_version = _nva_gradle_plugins_version(files, clone.name)

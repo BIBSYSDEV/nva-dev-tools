@@ -90,7 +90,8 @@ def versions_command(names: tuple[str, ...], clones_folder: Path | None, output_
 
     Or only of the named ones. Read from origin's default branch, so a worktree that is behind or has another
     branch checked out does not matter. A version older than the newest one in the report is marked with ⚠.
-    Code owners come from .github/CODEOWNERS. Warnings go to stderr, so stdout can be redirected.
+    Code owners come from the CODEOWNERS file GitHub uses: the first one in .github/, the root or docs/.
+    Warnings go to stderr, so stdout can be redirected.
     """
     reports = in_parallel_with_progress(
         "Reading versions", lambda clone: versions.read_versions(clone, fetch=fetch), find_clones(clones_folder, names)
