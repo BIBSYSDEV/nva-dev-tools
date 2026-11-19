@@ -51,6 +51,7 @@ The reference files name the bundled scripts as `scripts/<name>`; run them as `$
 - **Seven-day cooldown on everything external.** A release that is going to be yanked, patched or found compromised is usually caught within days, so no external version younger than 7 days goes into a pin: not a library, not Gradle, uv, a runtime patch or an action. The Gradle outdated report, Dependabot and the scripts in this skill all apply the same window, so a version they do not offer is not a target, however new and shiny. The two exceptions are nva-commons and nva-gradle-plugins, which the team releases itself, usually to get a fix out, so they are taken as soon as they are published. There are no others, not even for a security fix.
 - **Runtime majors are their own PR, always.** A new Java LTS, Node major or Python minor changes the platform the code runs on, so it never rides along in the bump PR, however small the diff. The bump PR only moves runtime patch pins.
 - **Read-only first, then write.** `mise gradle:outdated`, the scripts in this skill, and `gh api` lookups are safe to run freely. Pushing and opening pull requests happen only in steps 6 to 8.
+- **Every PR is a draft, and its body starts with `🤖`.** The user looks through the PRs and marks them ready for review. Start every PR body with the emoji itself and a space, not `:robot:`, so reviewers can tell an agent wrote it. When `gh stack submit` takes the body from a commit, that commit body starts with it.
 
 ## Steps
 
@@ -136,7 +137,7 @@ Run the gate on the final state, unless nothing outside `.github/` changed since
 
 ```bash
 git -C <worktree> push -u origin HEAD
-gh pr create --repo BIBSYSDEV/<repo> --title "build: Bump dependencies" --body-file <body.md>
+gh pr create --draft --repo BIBSYSDEV/<repo> --title "build: Bump dependencies" --body-file <body.md>
 ```
 
 Use a narrower title when the PR does one thing, such as `build: Bump nva-commons to 2.11.0`.
@@ -177,13 +178,14 @@ cd <worktree> && gh stack init <bump-branch>    # adopts the bump branch and its
 cd <worktree> && gh stack add "$(date +%F)-dependabot-config"
 # write or fix .github/dependabot.yml, then validate it
 git -C <worktree> add .github/dependabot.yml
-git -C <worktree> commit -m "ci: Add Dependabot config" -m "<what it updates and how it differs from the template, if at all>"
-cd <worktree> && gh stack submit --auto --open  # PR title and body come from the commit
+git -C <worktree> commit -m "ci: Add Dependabot config" -m "🤖 <what it updates and how it differs from the template, if at all>"
+cd <worktree> && gh stack submit --auto         # a draft PR, with title and body from the commit
 cd <worktree> && gh stack bottom                # put the worktree back on the branch it is named after
 ```
 
 Use `ci: Update Dependabot config` when fixing an existing file, and say in the commit body what differed from the template.
-If `submit` exits with code 9 (stacked PRs not enabled on the repository), push the branch and open the PR with `gh pr create --base <bump-branch>` instead.
+Never pass `--open` to `submit`: it marks every PR in the stack ready for review, the bump PR included.
+If `submit` exits with code 9 (stacked PRs not enabled on the repository), push the branch and open the PR with `gh pr create --draft --base <bump-branch>` instead.
 
 ### Step 8: Runtime major upgrade (stacked PR)
 
@@ -205,8 +207,8 @@ Then apply the checklist: Java in `references/java-gradle.md`, Node and Python i
 cd <worktree> && gh stack top                              # gh stack init <bump-branch> first when Step 7 made no stack
 cd <worktree> && gh stack add "$(date +%F)-java-25"
 # change every pin on the checklist, mise build
-git -C <worktree> commit -am "build: Upgrade to Java 25" -m "<what moved, and anything only a deploy exercises>"
-cd <worktree> && gh stack submit --auto --open
+git -C <worktree> commit -am "build: Upgrade to Java 25" -m "🤖 <what moved, and anything only a deploy exercises>"
+cd <worktree> && gh stack submit --auto
 cd <worktree> && gh stack bottom
 ```
 
@@ -233,7 +235,7 @@ A Jira key, when the user gave one, goes in the PR body's `Ticket:` line rather 
 ## Pull request body
 
 ```markdown
-Routine dependency bump.
+🤖 Routine dependency bump.
 Ticket: https://sikt.atlassian.net/browse/NP-XXXXX   <- only when the user gave one
 
 Changes:
@@ -258,7 +260,7 @@ Drop a heading when it has nothing under it.
 
 ## Final summary to the user
 
-State the PR link, the commits in order, what was skipped and why, and what is left for upstream (usually catalog gaps in nva-commons, or a ruleset fix in nva-gradle-plugins).
+State the PR link and that it is a draft, the commits in order, what was skipped and why, and what is left for upstream (usually catalog gaps in nva-commons, or a ruleset fix in nva-gradle-plugins).
 Give the Dependabot follow-up PR link too, or say that the existing config already matched.
 Give the link to each runtime upgrade PR, or for each runtime why there is none: already on the target, the newer version is only in preview on Lambda, or what blocked it.
 If any step was reverted because the fix grew too big, say what broke so the user can decide whether to pick it up separately.
