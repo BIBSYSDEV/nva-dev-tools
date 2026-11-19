@@ -77,6 +77,10 @@ When it says the wrapper is already on that version, there is nothing to commit 
 
 Check that `gradle-wrapper.properties`, `gradle-wrapper.jar`, `gradlew` and `gradlew.bat` are all in the diff, then build and commit: `build: Upgrade Gradle to 9.8.2`.
 
+Every Gradle repository should apply the foojay toolchain resolver in `settings.gradle`, so Gradle downloads the Corretto version the build asks for on a machine that does not have it.
+When it is missing, add it in this PR as `references/java-gradle.md` describes, build, and commit `build: Add foojay toolchain resolver`.
+Do not just mention that it is missing: adding it is part of the bump.
+
 uv: bump the pinned version in the workflow (`astral-sh/setup-uv` `with: version:`) and in `mise.toml` if present.
 Commit: `build: Bump uv to 0.13.7`.
 
