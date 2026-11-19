@@ -1,4 +1,4 @@
-"""Build versions on origin's default branch of each clone. No Click, no output.
+"""Build versions and code owners on origin's default branch of each clone. No Click, no output.
 
 Read through git rather than from a worktree, so a worktree that is behind, busy with other work, or missing
 does not change the answer.
@@ -12,12 +12,15 @@ Where each version comes from (first match wins):
   nva-gradle-plugins  nvaPluginsVersion in gradle.properties, or the plugin coordinate in build-logic/ or
                       buildSrc/ build.gradle(.kts)
 nva-commons and nva-gradle-plugins report their own version with the note "self".
+
+Code owners are everyone .github/CODEOWNERS names, in any repository, Gradle or not.
 """
 
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cache
+from itertools import takewhile
 from pathlib import Path, PurePosixPath
 
 from nva_dev_tools.common import git
@@ -30,6 +33,7 @@ BUILD_LOGIC_FOLDERS = ("build-logic", "buildSrc")
 BUILD_FILES = ("build.gradle", "build.gradle.kts")
 GRADLE_PROJECT_MARKERS = ("gradlew", "settings.gradle", "settings.gradle.kts")
 PLUGINS_DEFAULTS_FILE = "src/main/resources/nva-plugin.properties"
+CODEOWNERS_FILE = ".github/CODEOWNERS"
 
 GRADLE_DISTRIBUTION = re.compile(r"^distributionUrl=.*gradle-([\w.-]+?)-(?:bin|all)\.zip", re.MULTILINE)
 PLUGINS_COORDINATE = re.compile(r"com\.github\.bibsysdev:nva-gradle-plugins:(\d[\w.-]*)['\"]")
@@ -75,6 +79,8 @@ class RepositoryVersions:
     versions: dict[Column, DeclaredVersion] = field(
         default_factory=lambda: {column: DeclaredVersion() for column in COLUMNS}
     )
+    code_owners: list[str] = field(default_factory=list)
+    """Users, teams or emails in .github/CODEOWNERS, each once, in the order they first appear."""
     problem: str | None = None
     """Why the versions may be missing or out of date, such as a failed fetch."""
 
@@ -120,6 +126,7 @@ def _read(clone: Path, report: RepositoryVersions, *, fetch: bool) -> None:
     report.last_commit = datetime.fromisoformat(git.git("log", "-1", "--format=%cI", default_ref, cwd=clone))
 
     files = DefaultBranchFiles(clone, default_ref)
+    report.code_owners = _code_owners(files.read(CODEOWNERS_FILE))
     if not any(files.exists(marker) for marker in GRADLE_PROJECT_MARKERS):
         return
     plugins_version = _nva_gradle_plugins_version(files, clone.name)
@@ -184,6 +191,17 @@ def _default_java_version(plugins_clone: Path, plugins_version: str) -> str | No
     defaults = git.git("show", f"v{plugins_version}:{PLUGINS_DEFAULTS_FILE}", cwd=plugins_clone, check=False)
     match = DEFAULT_JAVA_VERSION.search(defaults)
     return match.group(1) if match else None
+
+
+def _code_owners(codeowners: str) -> list[str]:
+    """Each line is a path pattern and its owners; a token starting with # starts a comment."""
+    owners: list[str] = []
+    for line in codeowners.splitlines():
+        pattern_and_owners = line.split()
+        if not pattern_and_owners or pattern_and_owners[0].startswith("#"):
+            continue
+        owners.extend(takewhile(lambda token: not token.startswith("#"), pattern_and_owners[1:]))
+    return list(dict.fromkeys(owners))
 
 
 def _first_match(pattern: re.Pattern[str], files: DefaultBranchFiles, *paths: str) -> str | None:
