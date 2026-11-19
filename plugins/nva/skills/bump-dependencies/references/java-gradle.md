@@ -21,6 +21,24 @@ When `nva.java.languageVersion` is not set anywhere, the plugin default applies 
 `repos:versions` shows that default like any other Java version, so check the build files to tell the two apart.
 That repository is behind on Java, and setting the version explicitly is part of its Java upgrade in Step 8; the right place is wherever the repo already configures the `nva { ... }` extension for subprojects.
 The toolchain vendor is fixed to Amazon Corretto by nva-gradle-plugins, and the foojay resolver downloads it when the machine lacks it, so no local JDK install is needed for the build to pass.
+Some repositories do not apply the resolver yet; Step 1 adds it, as the next section describes.
+
+## foojay toolchain resolver
+
+Copy the setup from nva-gradle-template, the template for new services, instead of writing it from memory:
+
+```bash
+gh api repos/BIBSYSDEV/nva-gradle-template/contents/settings.gradle -H "Accept: application/vnd.github.raw"
+gh api repos/BIBSYSDEV/nva-gradle-template/contents/gradle.properties -H "Accept: application/vnd.github.raw"
+```
+
+It has two parts:
+
+- In `settings.gradle`, a `plugins` block with `id 'org.gradle.toolchains.foojay-resolver-convention' version "${foojayResolverVersion}"`, right after `pluginManagement { }`, since Gradle wants `pluginManagement` first and `plugins` before everything else.
+  A repository that already has a settings `plugins` block gets the line added to it.
+- In `gradle.properties`, `foojayResolverVersion=` with the version the template uses.
+
+A repository that applies the plugin with a literal version instead of the property already has the resolver, so leave it as it is.
 
 ## Java upgrade checklist
 
