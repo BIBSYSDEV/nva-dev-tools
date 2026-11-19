@@ -88,7 +88,7 @@ def gradle_build(gradle_version: str) -> dict[str, str]:
 @pytest.fixture
 def two_gradle_clones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     folder = tmp_path / "clones"
-    clone(folder, "nva-nvi", gradle_build("9.8.2"))
+    clone(folder, "nva-nvi", {**gradle_build("9.8.2"), ".github/CODEOWNERS": "* @BIBSYSDEV/nva\n"})
     clone(folder, "nva-search-api", gradle_build("9.7.0"))
     monkeypatch.setenv("NVA_REPOS_DIR", str(folder))
 
@@ -102,17 +102,29 @@ def test_versions_table_marks_what_is_older_than_the_newest() -> None:
     result = versions()
     assert result.exit_code == 0, result.output
     lines = result.stdout.splitlines()
-    assert lines[0].split() == ["REPOSITORY", "LAST", "COMMIT", "JAVA", "GRADLE", "NVA-COMMONS", "NVA-GRADLE-PLUGINS"]
+    assert lines[0].split() == [
+        "REPOSITORY",
+        "LAST",
+        "COMMIT",
+        "JAVA",
+        "GRADLE",
+        "NVA-COMMONS",
+        "NVA-GRADLE-PLUGINS",
+        "CODE",
+        "OWNERS",
+    ]
     assert "9.8.2" in lines[1] and "⚠" not in lines[1]
     assert "9.7.0 ⚠" in lines[2]
+    assert [lines[1].split()[-1], lines[2].split()[-1]] == ["@BIBSYSDEV/nva", "-"]
     assert lines[-1] == "⚠ = older than the newest version used in any repository (Gradle 9.8.2)"
 
 
 @pytest.mark.usefixtures("two_gradle_clones")
 def test_versions_as_markdown() -> None:
     lines = versions("--format", "markdown").stdout.splitlines()
-    assert lines[0] == "| Repository | Last commit | Java | Gradle | nva-commons | nva-gradle-plugins |"
-    assert lines[3].startswith("| nva-search-api | ") and lines[3].endswith(" | - | 9.7.0 ⚠ | - | - |")
+    assert lines[0] == "| Repository | Last commit | Java | Gradle | nva-commons | nva-gradle-plugins | Code owners |"
+    assert lines[2].endswith(" | @BIBSYSDEV/nva |")
+    assert lines[3].startswith("| nva-search-api | ") and lines[3].endswith(" | - | 9.7.0 ⚠ | - | - | - |")
 
 
 @pytest.mark.usefixtures("two_gradle_clones")
@@ -122,6 +134,7 @@ def test_versions_as_json() -> None:
     [repository] = report["repositories"]
     assert repository["name"] == "nva-search-api" and repository["problem"] is None
     assert repository["gradle"] == {"version": "9.7.0", "note": None, "outdated": False}
+    assert repository["codeOwners"] == []
 
 
 def test_last_commit_age_counts_calendar_days() -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Show the last commit and the Java, Gradle, nva-commons and nva-gradle-plugins versions of every clone."
+#MISE description="Show the last commit, the Java, Gradle, nva-commons and nva-gradle-plugins versions, and the code owners of every clone."
 #MISE dir="{{cwd}}"
 set -euo pipefail
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
