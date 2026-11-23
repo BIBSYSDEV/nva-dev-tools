@@ -124,6 +124,42 @@ def test_a_repository_without_gradle_has_only_a_last_commit(tmp_path: Path) -> N
     assert report.last_commit is not None
 
 
+def test_code_owners_are_read_in_any_repository_each_once_and_without_comments(tmp_path: Path) -> None:
+    frontend = clone_with(
+        tmp_path,
+        "NVA-Frontend",
+        {
+            "package.json": "{}\n",
+            ".github/CODEOWNERS": (
+                "# Everything is owned by the team\n"
+                "* @BIBSYSDEV/nva  # the whole team\n"
+                "\n"
+                "/src/ @some-developer @BIBSYSDEV/nva\n"
+                "*.md docs@example.com\n"
+            ),
+        },
+    )
+    assert read(frontend.root).code_owners == ["@BIBSYSDEV/nva", "@some-developer", "docs@example.com"]
+
+
+def test_code_owners_come_from_the_first_codeowners_file_in_githubs_order(tmp_path: Path) -> None:
+    in_github_folder = clone_with(
+        tmp_path, "nva-nvi", {".github/CODEOWNERS": "* @github-folder\n", "CODEOWNERS": "* @root\n"}
+    )
+    in_root = clone_with(tmp_path, "nva-uac", {"CODEOWNERS": "* @root\n", "docs/CODEOWNERS": "* @docs-folder\n"})
+    in_docs_folder = clone_with(tmp_path, "nva-search-api", {"docs/CODEOWNERS": "* @docs-folder\n"})
+    assert [read(clone.root).code_owners for clone in (in_github_folder, in_root, in_docs_folder)] == [
+        ["@github-folder"],
+        ["@root"],
+        ["@docs-folder"],
+    ]
+
+
+def test_a_repository_without_codeowners_has_no_code_owners(tmp_path: Path) -> None:
+    service = clone_with(tmp_path, "nva-nvi", {"gradlew": ""})
+    assert read(service.root).code_owners == []
+
+
 def test_a_failed_fetch_is_a_problem_and_origin_as_last_fetched_is_reported(tmp_path: Path) -> None:
     service = clone_with(tmp_path, "nva-nvi", {"gradlew": "", WRAPPER_PROPERTIES: wrapper_properties("9.8.2")})
     git("remote", "set-url", "origin", str(tmp_path / "gone"), cwd=service.root)

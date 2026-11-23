@@ -86,11 +86,12 @@ def pull(context: click.Context, names: tuple[str, ...], clones_folder: Path | N
     help="Skip git fetch first, and report origin as of the last fetch.",
 )
 def versions_command(names: tuple[str, ...], clones_folder: Path | None, output_format: str, fetch: bool) -> None:
-    """Last commit and Java, Gradle, nva-commons and nva-gradle-plugins versions of every clone, or of the named ones.
+    """Last commit, Java, Gradle, nva-commons and nva-gradle-plugins versions, and code owners of every clone.
 
-    Read from origin's default branch, so a worktree that is behind or has another branch checked out does not
-    matter. A version older than the newest one in the report is marked with ⚠. Warnings go to stderr, so
-    stdout can be redirected.
+    Or only of the named ones. Read from origin's default branch, so a worktree that is behind or has another
+    branch checked out does not matter. A version older than the newest one in the report is marked with ⚠.
+    Code owners come from the CODEOWNERS file GitHub uses: the first one in .github/, the root or docs/.
+    Warnings go to stderr, so stdout can be redirected.
     """
     reports = in_parallel_with_progress(
         "Reading versions", lambda clone: versions.read_versions(clone, fetch=fetch), find_clones(clones_folder, names)
@@ -131,12 +132,16 @@ def describe_last_commit(last_commit: datetime | None, today: date | None = None
     return f"{local_date.isoformat()} ({age})"
 
 
+def describe_code_owners(code_owners: list[str]) -> str:
+    return ", ".join(code_owners) or MISSING
+
+
 def versions_in_order(report: RepositoryVersions) -> list[DeclaredVersion]:
     return [report.versions[column] for column in COLUMNS]
 
 
 def version_headers() -> list[str]:
-    return ["Repository", "Last commit", *(column.header for column in COLUMNS)]
+    return ["Repository", "Last commit", *(column.header for column in COLUMNS), "Code owners"]
 
 
 def print_versions_table(reports: list[RepositoryVersions]) -> None:
@@ -148,6 +153,7 @@ def print_versions_table(reports: list[RepositoryVersions]) -> None:
                 Cell(describe(declared), "yellow" if declared.outdated else "")
                 for declared in versions_in_order(report)
             ),
+            describe_code_owners(report.code_owners),
         ]
         for report in reports
     ]
@@ -159,7 +165,12 @@ def print_markdown_table(reports: list[RepositoryVersions]) -> None:
     click.echo("| " + " | ".join(headers) + " |")
     click.echo("| " + " | ".join("---" for _ in headers) + " |")
     for report in reports:
-        cells = [report.repository, describe_last_commit(report.last_commit), *map(describe, versions_in_order(report))]
+        cells = [
+            report.repository,
+            describe_last_commit(report.last_commit),
+            *map(describe, versions_in_order(report)),
+            describe_code_owners(report.code_owners),
+        ]
         click.echo("| " + " | ".join(cells) + " |")
 
 
@@ -175,6 +186,7 @@ def versions_as_json(reports: list[RepositoryVersions], newest_by_column: dict[C
                 "name": report.repository,
                 "lastCommit": report.last_commit.isoformat() if report.last_commit else None,
                 **{column.key: declared_as_json(report.versions[column]) for column in COLUMNS},
+                "codeOwners": report.code_owners,
                 "problem": report.problem,
             }
             for report in reports

@@ -69,7 +69,7 @@ The `repos` tasks work on every clone in `NVA_REPOS_DIR` (or the current directo
 | Task | Does |
 | --- | --- |
 | `repos:pull [repository...]` | Brings the default branch of every clone up to date with origin. Clones with uncommitted changes or local commits are left alone. |
-| `repos:versions [repository...]` | Shows the last commit and the Java, Gradle, nva-commons and nva-gradle-plugins versions of every repository, with ⚠ where one is behind the newest. `--format markdown` or `--format json` for other output. |
+| `repos:versions [repository...]` | Shows the last commit and the Java, Gradle, nva-commons and nva-gradle-plugins versions of every repository, with ⚠ where one is behind the newest, and who the `CODEOWNERS` file names, if anyone (the first one in `.github/`, the root or `docs/`, like GitHub). `--format markdown` or `--format json` for other output. |
 
 ## Tool versions
 
