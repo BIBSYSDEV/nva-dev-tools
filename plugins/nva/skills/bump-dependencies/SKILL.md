@@ -130,6 +130,8 @@ Build, then commit `build: Bump dependencies`, with one extra commit per bump th
 Update both the SHA and the comment, since the comment is what humans and Dependabot read.
 A `uses:` with a branch ref, such as `BIBSYSDEV/nva-github-workflows/.github/workflows/java.yml@v2`, is a shared workflow that pins its own actions; only check that the repo is on the newest major (the README in nva-github-workflows says which).
 Many repositories have Dependabot for minor and patch bumps, so this step is often empty; when it is not, commit `ci: Bump GitHub Actions`.
+Lint every workflow file the PR changes with `jactionlint <worktree>/.github/workflows/<file>`, the GitHub Actions linter pinned in the shared mise config.
+Fix what the PR introduced, and list older findings in the final summary instead of fixing them here.
 
 ### Step 6: Pull request
 

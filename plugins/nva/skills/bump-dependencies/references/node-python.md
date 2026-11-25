@@ -58,6 +58,6 @@ Type checker and linter bumps (ty, ruff) often add findings; fix the code in a s
 
 ## Shared tool pins
 
-The shared `mise/config.toml` in nva-dev-tools pins uv, cfn-lint, check-jsonschema, gh, jq, shellcheck, spectral and yq for every developer.
+The shared `mise/config.toml` in nva-dev-tools pins uv, cfn-lint, check-jsonschema, gh, jactionlint, jq, shellcheck, spectral and yq for every developer.
 That file is bumped in its own repository with `mise run bump`, not as part of a service PR.
 Mention it in the summary when a service bump depended on a newer shared tool.
