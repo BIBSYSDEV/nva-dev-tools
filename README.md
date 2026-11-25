@@ -71,4 +71,4 @@ claude plugin eval plugins/nva --no-publish
 
 Each case runs three times with the plugin and three times without it, so the report shows the score and what the skill adds (Δ); it takes a few minutes, costs a few dollars of Claude usage, and lands in `plugins/nva/evals/results/`.
 
-[mise/README.md](mise/README.md) lists every task, the settings the `pipeline` tasks need (`NVA_CLI` and AWS profiles), and how to add a task.
+[mise/README.md](mise/README.md) lists every task, the settings the `pipeline` and `aws:costs` tasks need (`NVA_CLI` and AWS profiles), and how to add a task.

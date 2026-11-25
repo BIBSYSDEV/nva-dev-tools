@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Show what each AWS account cost per month and per day, with outliers marked. Profiles: arguments, else NVA_COST_PROFILES."
+set -euo pipefail
+
+# shellcheck source=mise/tasks/lib/nva-cli.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/nva-cli.sh"
+
+# Profiles named as arguments win; without them, NVA_COST_PROFILES or else the read profiles in mise/README.md
+export NVA_COST_PROFILES="${NVA_COST_PROFILES:-nva-e2e nva-sandbox nva-dev nva-test nva-prod-read}"
+nva_cli accounts costs "$@"

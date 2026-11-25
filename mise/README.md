@@ -8,14 +8,16 @@ Wire it in once; `git pull` in this repo is the update mechanism.
 The setup steps are in the [root README](../README.md).
 Your own config wins over the shared one, so override a tool version locally if you need to.
 
-Three things are yours to set, since they differ per machine:
+These are yours to set, since they differ per machine:
 
-- `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` tasks.
+- `NVA_CLI`: how to run [nva-aws-cli-tools](https://github.com/BIBSYSDEV/nva-aws-cli-tools), needed by the `pipeline` tasks and `aws:costs`.
   Example: `NVA_CLI = "uv run --quiet --project ~/projects/nva-aws-cli-tools ~/projects/nva-aws-cli-tools/cli.py"` in your `[env]`.
 - `NVA_REPOS_DIR`: the folder that holds your NVA clones, where `wt:clone` puts new ones and the `repos` tasks look for them (default: the current directory).
   A leading `~/` works in both, even though mise itself leaves it alone in `[env]`.
 - AWS profiles `nva-e2e`, `nva-sandbox`, `nva-dev`, `nva-test`, `nva-prod-read` and `nva-prod-write`, under an SSO session named `sikt`.
   Prod has one profile per access level: `pipeline:overview` reads prod through `nva-prod-read`, and `nva-prod-write` is for changes.
+- `NVA_COST_PROFILES` (optional): the AWS profiles `aws:costs` reports on, separated by spaces, if not the five read profiles above.
+  Example: `NVA_COST_PROFILES = "nva-dev nva-test my-other-account"` in your `[env]`.
 
 ## Tasks
 
@@ -70,6 +72,18 @@ The `repos` tasks work on every clone in `NVA_REPOS_DIR` (or the current directo
 | --- | --- |
 | `repos:pull [repository...]` | Brings the default branch of every clone up to date with origin. Clones with uncommitted changes or local commits are left alone. |
 | `repos:versions [repository...]` | Shows the last commit and the Java, Gradle, nva-commons and nva-gradle-plugins versions of every repository, with ⚠ where one is behind the newest, and who the `CODEOWNERS` file names, if anyone (the first one in `.github/`, the root or `docs/`, like GitHub). `--format markdown` or `--format json` for other output. |
+
+## AWS costs
+
+`aws:costs [profile...]` shows what each AWS account cost: one table per month for the last six months, and one per day for the last 14 days.
+It runs nva-aws-cli-tools `accounts costs` through `NVA_CLI`, which fetches all profiles at once with a progress bar; `mise run aws:costs -- --help` shows its options.
+
+- Profiles: the ones you name, else `NVA_COST_PROFILES`, else `nva-e2e nva-sandbox nva-dev nva-test nva-prod-read`.
+- Rows are named after the AWS accounts, not your profiles, most expensive first, with totals in the last row and column.
+- A red ▲ marks a month or day at least 1.5 times the account's median.
+- `--markdown` prints Markdown code blocks, which stay aligned in Slack: `mise run aws:costs --markdown | pbcopy`.
+- A profile that fails is left out of the tables, and the task exits with an error after them.
+- Cost Explorer charges USD 0.01 per request, and a run makes three per profile.
 
 ## Tool versions
 
