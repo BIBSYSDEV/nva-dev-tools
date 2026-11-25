@@ -168,7 +168,9 @@ An existing config matches when it differs from the template only in those ways.
 Groups a repository added on purpose for related packages (NVA-Frontend has several) stay as they are.
 A Gradle entry that lists `/buildSrc` or `/build-logic` next to `/` deviates: the root directory already covers both (Dependabot opened nva-person-preferences#41 for `buildSrc/build.gradle` and nva-search-api#800 for `build-logic/build.gradle` with only `/` configured), so replace `directories` with `directory: "/"`.
 
-Validate the file with `uvx check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml`; the gate has nothing to check here, since only `.github/` changes.
+Validate the file with `check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml`; the gate has nothing to check here, since only `.github/` changes.
+check-jsonschema is pinned in the shared mise config in nva-dev-tools.
+When the command is not found, ask the user to pull nva-dev-tools and run `mise install`, instead of fetching it with `uvx` or `pipx`, which would bypass the cooldown.
 
 `gh stack` has no `-C` flag, so run each call as `cd <worktree> && gh stack ...`:
 
