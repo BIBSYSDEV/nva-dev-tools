@@ -28,5 +28,4 @@ run = "uv run --quiet pytest -q"
 
 [tasks.bump]
 description = "Bump the pinned CLIs in mise/config.toml and this file to releases at least a week old."
-# check-jsonschema needs its pypi: prefix, since mise has no short name for it and skips an unknown name without an error.
 run = "mise upgrade --bump --minimum-release-age 7d uv aws-cli cfn-lint pypi:check-jsonschema claude-code gh jactionlint jq shellcheck spectral yq"

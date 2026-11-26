@@ -10,7 +10,6 @@ uv = "0.13.5"
 # CLIs used by the shared tasks (bump with `mise run bump` in this repo)
 aws-cli = "2.36.50"
 cfn-lint = "1.58.0"
-# The version pins the tool; uvx_args makes uv pick only dependencies released at least seven days ago.
 "pypi:check-jsonschema" = { version = "0.39.0", uvx_args = "--exclude-newer 7d" }
 gh = "2.103.0"
 jactionlint = "2.6.0"
