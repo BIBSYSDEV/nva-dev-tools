@@ -49,6 +49,7 @@ The reference files name the bundled scripts as `scripts/<name>`; run them as `$
 - **Record new decisions.** A failure that is in neither file yet gets a row in `${CLAUDE_PLUGIN_DATA}/known-fixes-pending.md` in the same session, written as the top of `references/known-fixes.md` describes. Delete pending rows that `references/known-fixes.md` already has, since they reached the plugin through an update. Mention the new rows in the final summary so the user can veto them.
 - **Respect the catalog rules.** Third-party versions come from `nvaCatalog` (published by nva-commons), nva-commons modules from `nvaLibs`, and the local `gradle/libs.versions.toml` is only for what the shared catalog lacks. A bump that makes a local entry redundant should delete the local entry rather than bump it.
 - **Seven-day cooldown on everything external.** A release that is going to be yanked, patched or found compromised is usually caught within days, so no external version younger than 7 days goes into a pin: not a library, not Gradle, uv, a runtime patch or an action. The Gradle outdated report, Dependabot and the scripts in this skill all apply the same window, so a version they do not offer is not a target, however new and shiny. The two exceptions are nva-commons and nva-gradle-plugins, which the team releases itself, usually to get a fix out, so they are taken as soon as they are published. There are no others, not even for a security fix.
+- **No unpinned tools during the run.** The cooldown also covers what you download and execute yourself: `uvx`, `npx`, `pipx run` and `gh extension install` fetch whatever is newest and run it with the user's credentials. Use the tools pinned in the shared mise config in nva-dev-tools, and when one is missing, ask the user instead of fetching it.
 - **Runtime majors are their own PR, always.** A new Java LTS, Node major or Python minor changes the platform the code runs on, so it never rides along in the bump PR, however small the diff. The bump PR only moves runtime patch pins.
 - **Read-only first, then write.** `mise gradle:outdated`, the scripts in this skill, and `gh api` lookups are safe to run freely. Pushing and opening pull requests happen only in steps 6 to 8.
 - **Every PR is a draft, and its body starts with `🤖`.** The user looks through the PRs and marks them ready for review. Start every PR body with the emoji itself and a space, not `:robot:`, so reviewers can tell an agent wrote it. When `gh stack submit` takes the body from a commit, that commit body starts with it.
@@ -172,7 +173,7 @@ A Gradle entry that lists `/buildSrc` or `/build-logic` next to `/` deviates: th
 
 Validate the file with `check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml`; the gate has nothing to check here, since only `.github/` changes.
 check-jsonschema is pinned in the shared mise config in nva-dev-tools.
-When the command is not found, ask the user to pull nva-dev-tools and run `mise install`, instead of fetching it with `uvx` or `pipx`, which would bypass the cooldown.
+When the command is not found, ask the user to pull nva-dev-tools and run `mise install`.
 
 `gh stack` has no `-C` flag, so run each call as `cd <worktree> && gh stack ...`:
 
